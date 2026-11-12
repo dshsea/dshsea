@@ -2,6 +2,12 @@
 
 Every public GitHub repo tagged [`dsh-plugin`](https://github.com/topics/dsh-plugin) already swims in the ocean on [dshsea.com](https://dshsea.com) as a **wild** creature. A weekly crawl picks up new ones on its own, so the first step is just to add that topic to your repo.
 
+Every wild creature has a page at `dshsea.com/r/<owner>/<repo>` that links to the repo. You can put a badge in your README without claiming anything:
+
+```md
+[![on dshsea](https://dshsea.com/badge.svg)](https://dshsea.com/r/<owner>/<repo>)
+```
+
 **Claiming** a creature makes it yours. Claimed creatures get:
 
 - their own page (`dshsea.com/p/<name>`), share card and README badge

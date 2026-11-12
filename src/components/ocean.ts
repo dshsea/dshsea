@@ -16,7 +16,7 @@ export function initOcean() {
   const spacer = $('ocean-spacer');
   document.body.classList.add('ocean-2d');
   spacer.style.position = 'relative';
-  for (const id of ['dive', 'rise', 'random']) $(id).hidden = true;
+  for (const id of ['dive', 'rise', 'random', 'photo']) $(id).hidden = true;
 
   let surface = 0;
   const topOf = (i: number) => surface + (i + 1) * GAP;

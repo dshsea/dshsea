@@ -15,8 +15,11 @@ interface Props {
   description?: string;
   ogImage?: string;
   ocean?: boolean;
+  /** The page exists in one language only: no hreflang alternates. */
+  single?: boolean;
+  noindex?: boolean;
 }
-const { lang, path, title, description, ogImage = '/og/home.png', ocean = false } = Astro.props;
+const { lang, path, title, description, ogImage = '/og/home.png', ocean = false, single = false, noindex = false } = Astro.props;
 const t = dict(lang);
 const pageTitle = title ? `${title} · dshsea` : t.siteTitle;
 const desc = description ?? t.siteDesc;
@@ -31,9 +34,14 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
     <title>{pageTitle}</title>
     <meta name="description" content={desc} />
     <link rel="canonical" href={canonical} />
-    <link rel="alternate" hreflang="en" href={new URL(href('en', path), SITE).href} />
-    <link rel="alternate" hreflang="zh" href={new URL(href('zh', path), SITE).href} />
-    <link rel="alternate" hreflang="x-default" href={new URL(href('en', path), SITE).href} />
+    {noindex && <meta name="robots" content="noindex" />}
+    {!single && (
+      <>
+        <link rel="alternate" hreflang="en" href={new URL(href('en', path), SITE).href} />
+        <link rel="alternate" hreflang="zh" href={new URL(href('zh', path), SITE).href} />
+        <link rel="alternate" hreflang="x-default" href={new URL(href('en', path), SITE).href} />
+      </>
+    )}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="theme-color" content="#04102a" />
     <meta property="og:type" content="website" />
@@ -56,7 +64,7 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
       <nav>
         <a href={href(lang, '/list')}>{t.navList}</a>
         <a class="cta" href={href(lang, '/submit')}>{t.navSubmit}</a>
-        <a href={href(other, path)} hreflang={other}>{other === 'zh' ? '中文' : 'EN'}</a>
+        <a href={href(other, single ? '/' : path)} hreflang={other}>{other === 'zh' ? '中文' : 'EN'}</a>
         <a href={REPO_URL} rel="noopener" aria-label="GitHub">GitHub</a>
       </nav>
     </header>
@@ -66,7 +74,7 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
         <footer class="foot">
           <p>{t.unofficial}</p>
           <p>
-            <a href={href(lang, '/')}>{t.backToOcean}</a> · <a href={REPO_URL} rel="noopener">GitHub</a>
+            <a href={href(lang, '/')}>{t.backToOcean}</a> · <a href={href(lang, '/list')}>{t.navList}</a> · <a href="/all/1">All plugins</a> · <a href={REPO_URL} rel="noopener">GitHub</a>
           </p>
         </footer>
       )

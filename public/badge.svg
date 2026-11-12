@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="28" viewBox="0 0 176 28" role="img" aria-label="dshsea: swimming here">
+<title>This plugin swims in the dshsea ocean</title>
+<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0d3f7c"/><stop offset="1" stop-color="#04102a"/></linearGradient><clipPath id="r"><rect width="176" height="28" rx="14"/></clipPath></defs>
+<g clip-path="url(#r)"><rect width="176" height="28" fill="url(#g)"/><rect width="82" height="28" fill="#6ef3d6"/></g>
+<circle cx="17" cy="14" r="6" fill="none" stroke="#04102a" stroke-width="1.6"/>
+<path d="M11.6 15.2c1.8-1.4 3.6 1.4 5.4 0s3.6 1.4 5.4 0" fill="none" stroke="#04102a" stroke-width="1.6" stroke-linecap="round"/>
+<g font-family="Inter,Helvetica Neue,Arial,sans-serif" font-size="12"><text x="29" y="18.2" font-weight="700" fill="#04102a">dshsea</text><text x="93" y="18.2" fill="#dbe8ff">swims here</text></g>
+</svg>

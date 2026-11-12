@@ -1,11 +1,16 @@
 {
-  // Static site on Cloudflare Workers (static assets only, no server code).
+  // Static site on Cloudflare Workers. worker/index.js only runs for requests that match no static file:
+  // it renders the per-repo landing pages (/r/owner/repo) from a template.
   "name": "dshsea",
+  "main": "worker/index.js",
   "compatibility_date": "2026-11-01",
   "routes": [{ "pattern": "dshsea.com", "custom_domain": true }],
   "workers_dev": false,
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "404-page"
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    // Browser navigations that match no file would otherwise get the 404 page without the Worker being asked.
+    "run_worker_first": ["/r/*", "/zh/r/*"]
   }
 }

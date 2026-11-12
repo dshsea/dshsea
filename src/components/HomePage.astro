@@ -13,9 +13,9 @@ const count = entries.length;
 const seabed = depthOf(Math.max(count - 1, 0)) + 420;
 // The giants, marked on the depth gauge.
 const landmarks = entries
-  .map((e, i) => [i, e.name, e.stars] as [number, string, number])
+  .map((e, i) => [i, e.key, e.stars] as [number, string, number])
   .sort((a, b) => b[2] - a[2])
-  .slice(0, 36);
+  .slice(0, 120);
 
 const payload = {
   base: prefix(lang),
@@ -30,6 +30,9 @@ const payload = {
     zones: t.zones, speciesNames: t.speciesNames, rarityNames: t.rarityNames,
     ghostLabel: t.ghostLabel, sonarNone: t.sonarNone, hintMouse: t.hintMouse, hintTouch: t.hintTouch,
     newSpecies: t.newSpecies, noDesc: t.noDesc, wild: t.wild, claimed: t.claimed, claim: t.claim, details: t.details,
+    dexUnknown: t.dexUnknown, bestEmpty: t.bestEmpty, achToast: t.achToast, ach: t.ach,
+    trackBelow: t.trackBelow, trackAbove: t.trackAbove, trackNear: t.trackNear,
+    photoTweetAt: t.photoTweetAt, photoTweet: t.photoTweet,
     shareTweet: t.shareTweet('{name}', '{species}', '{depth}'),
   },
 };
@@ -86,12 +89,40 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
       <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2 4h2.5c3 0 4 8 7 8H14M2 12h2.5c1.2 0 2-1.2 2.8-2.6M9.2 6.3C9.9 5 10.6 4 11.5 4H14M12.2 2.2L14 4l-1.8 1.8M12.2 10.2L14 12l-1.8 1.8"/></svg>
       {t.random}
     </button>
+    <button id="photo" type="button" title={t.photo}>
+      <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M2 5.5h2.6L5.8 4h4.4l1.2 1.5H14V12H2z"/><circle cx="8" cy="8.6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      {t.photo}
+    </button>
   </div>
-  <p class="logbook" aria-live="off">
+  <button id="tracker" type="button" title={t.trackHint} hidden><i></i><span></span></button>
+  <button class="logbook" id="logbook" type="button" title={t.dexTitle}>
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M8 4c-1.4-1-3.3-1.3-5.5-1v9.5c2.2-.3 4.1 0 5.5 1 1.4-1 3.3-1.3 5.5-1V3c-2.2-.3-4.1 0-5.5 1zM8 4v9.5"/></svg>
     <span><b id="log-seen">0</b> / {fmt(count)} {t.logSeen}</span>
     <span><b id="log-species">0</b> {t.logSpecies}</span>
     <span>{t.logDeepest} <b id="log-deepest">0 m</b></span>
-  </p>
+  </button>
+
+  <section id="dex" class="sheet" hidden>
+    <button class="x" data-close aria-label={t.close}>×</button>
+    <h2>{t.dexTitle}</h2>
+    <p class="sub">{t.dexSub}</p>
+    <ul id="dex-grid"></ul>
+    <h3>{t.bestTitle}</h3>
+    <ul id="dex-best"></ul>
+    <h3>{t.achTitle} <small id="dex-ach-count"></small></h3>
+    <ul id="dex-ach"></ul>
+  </section>
+
+  <section id="shot" class="sheet" hidden>
+    <button class="x" data-close aria-label={t.close}>×</button>
+    <h2>{t.photoTitle}</h2>
+    <img id="shot-img" alt="" />
+    <p class="sub">{t.photoTip}</p>
+    <div class="actions">
+      <a id="shot-save" class="btn" download="dshsea.jpg">{t.photoSave}</a>
+      <a id="shot-post" class="btn alt" target="_blank" rel="noopener">{t.photoPost}</a>
+    </div>
+  </section>
   <p id="toast" role="status"></p>
   <p id="hint" aria-hidden="true"></p>
   <button id="sound" type="button" aria-pressed="false" hidden>
@@ -118,6 +149,7 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
       <a id="card-visit" class="btn" target="_blank" rel="noopener">{t.visit} ↗</a>
       <a id="card-share" class="btn alt" target="_blank" rel="noopener">{t.share}</a>
       <a id="card-details" class="btn ghost">{t.details}</a>
+      <a id="card-claim" class="claim" hidden>{t.claim} →</a>
     </div>
   </section>
 
@@ -253,13 +285,65 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   .helm :global(button.held) { color: #03131f; background: var(--glow); border-color: var(--glow); transform: scale(0.97); }
   .helm #rise { padding: 11px; }
   .logbook {
-    position: fixed; left: 50%; top: 66px; transform: translateX(-50%); z-index: 9; margin: 0; display: flex; gap: 18px; white-space: nowrap;
-    font-size: 12px; color: var(--dim); opacity: 0; transition: opacity 0.5s; pointer-events: none; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+    position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 9; margin: 0; display: flex; align-items: center; gap: 16px; white-space: nowrap;
+    font: 12px var(--body); color: var(--dim); opacity: 0; transition: opacity 0.5s, background 0.2s; pointer-events: none; cursor: pointer;
+    background: rgba(8, 18, 42, 0.4); border: 1px solid var(--line); border-radius: 999px; padding: 7px 16px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   }
+  .logbook:hover { background: rgba(20, 44, 90, 0.7); color: var(--text); }
+  .logbook svg { color: var(--glow); flex: none; }
   .logbook b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-  :global(body.dived.ocean-3d) .logbook { opacity: 1; }
+  :global(body.dived.ocean-3d) .logbook { opacity: 1; pointer-events: auto; }
+  #tracker {
+    position: fixed; right: 24px; top: 50%; transform: translateY(-50%); z-index: 11; display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+    font: 500 13px var(--body); color: var(--gold); background: rgba(8, 18, 42, 0.55); border: 1px solid rgba(245, 210, 122, 0.4); border-radius: 999px; padding: 10px 16px;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); font-variant-numeric: tabular-nums;
+  }
+  #tracker:hover { background: rgba(60, 46, 14, 0.6); }
+  #tracker i { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 0 rgba(245, 210, 122, 0.7); animation: blip 1.8s ease-out infinite; }
+  :global(#tracker.near) i { animation-duration: 0.5s; }
+  @keyframes blip { 100% { box-shadow: 0 0 0 12px rgba(245, 210, 122, 0); } }
+  :global(body:not(.dived)) #tracker { display: none; }
+
+  .sheet {
+    position: fixed; z-index: 40; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 24px)); max-height: calc(100dvh - 48px); overflow: auto;
+    background: rgba(8, 18, 42, 0.86); border: 1px solid var(--line-strong); border-radius: 24px; padding: 28px;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6); backdrop-filter: blur(24px) saturate(1.3); -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  }
+  .sheet h2 { font-family: var(--display); font-weight: 400; font-size: 38px; line-height: 1.1; margin: 0 0 6px; }
+  .sheet h3 { font: 600 13px var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 26px 0 12px; }
+  .sheet h3 small { color: var(--glow); letter-spacing: 0; margin-left: 6px; }
+  .sheet .sub { color: var(--dim); font-size: 14px; margin: 0 0 18px; }
+  .sheet .x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; border: 0; cursor: pointer; background: rgba(255, 255, 255, 0.08); color: var(--dim); font-size: 18px; line-height: 1; }
+  .sheet .x:hover { color: #fff; background: rgba(255, 255, 255, 0.16); }
+  .sheet .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sheet ul { list-style: none; margin: 0; padding: 0; }
+  #dex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+  #dex-grid :global(li) { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; padding: 10px 6px; border: 1px solid var(--line); border-radius: 14px; font-size: 12px; }
+  #dex-grid :global(img) { width: 100%; height: 62px; object-fit: contain; }
+  #dex-grid :global(b) { font-weight: 600; color: var(--text); }
+  #dex-grid :global(small) { color: var(--dim); }
+  #dex-grid :global(li.locked) { color: var(--dim); }
+  #dex-grid :global(li.locked img) { filter: brightness(0) invert(0.35); opacity: 0.5; }
+  #dex-grid :global(li.locked b) { color: var(--dim); font-weight: 400; }
+  #dex-grid :global(li[data-rarity='rare']:not(.locked)) { border-color: rgba(110, 190, 255, 0.5); }
+  #dex-grid :global(li[data-rarity='epic']:not(.locked)) { border-color: rgba(190, 130, 255, 0.6); }
+  #dex-grid :global(li[data-rarity='legendary']:not(.locked)) { border-color: rgba(245, 210, 122, 0.7); }
+  #dex-best { display: grid; gap: 6px; font-size: 14px; color: var(--dim); }
+  #dex-best :global(li) { display: flex; align-items: center; gap: 12px; }
+  #dex-best :global(img) { width: 44px; height: 32px; object-fit: contain; flex: none; }
+  #dex-best :global(a) { color: var(--text); font-weight: 500; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #dex-best :global(a:hover) { color: var(--glow); }
+  #dex-best :global(span) { margin-left: auto; flex: none; color: var(--gold); font-variant-numeric: tabular-nums; }
+  #dex-ach { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+  #dex-ach :global(li) { padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px; font-size: 12px; color: var(--dim); opacity: 0.55; }
+  #dex-ach :global(li b) { display: block; font-size: 14px; font-weight: 600; color: var(--text); }
+  #dex-ach :global(li.done) { opacity: 1; border-color: rgba(110, 243, 214, 0.5); background: rgba(110, 243, 214, 0.07); }
+  #dex-ach :global(li.done b) { color: var(--glow); }
+  #shot { width: min(640px, calc(100vw - 24px)); }
+  #shot-img { display: block; width: 100%; border-radius: 14px; margin: 14px 0; border: 1px solid var(--line); }
   #toast {
-    position: fixed; left: 50%; top: 98px; transform: translate(-50%, -8px); z-index: 14; margin: 0; pointer-events: none;
+    position: fixed; left: 50%; top: 106px; transform: translate(-50%, -8px); z-index: 14; margin: 0; pointer-events: none;
     font-size: 14px; font-weight: 500; color: #03131f; background: linear-gradient(135deg, #8af7df, #6cc8ff); border-radius: 999px; padding: 9px 18px;
     box-shadow: 0 10px 34px rgba(110, 243, 214, 0.35); opacity: 0; transition: opacity 0.4s, transform 0.4s; white-space: nowrap;
   }
@@ -268,9 +352,12 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   @media (max-width: 640px) {
     .helm { left: auto; right: 10px; bottom: 12px; transform: none; }
     .helm button { font-size: 12px; padding: 10px 13px; }
-    .helm #random { font-size: 0; gap: 0; padding: 10px; }
-    .logbook { top: 104px; gap: 12px; font-size: 11px; }
-    #toast { top: 132px; font-size: 13px; }
+    .helm #random, .helm #photo { font-size: 0; gap: 0; padding: 10px; }
+    #tracker { right: 10px; top: 150px; transform: none; font-size: 12px; padding: 8px 12px; }
+    .logbook svg { display: none; }
+    .sheet { padding: 20px; }
+    .logbook { top: 102px; gap: 10px; font-size: 11px; padding: 6px 12px; }
+    #toast { top: 140px; font-size: 13px; }
   }
   #hint {
     position: fixed; left: 50%; bottom: 82px; transform: translateX(-50%); z-index: 9; margin: 0; pointer-events: none;
@@ -287,36 +374,6 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   }
   #sound[aria-pressed='true'] { color: #03131f; background: var(--glow); border-color: var(--glow); }
   @media (max-width: 640px) {
-    .helm { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 12; display: flex; gap: 10px; align-items: center; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
-  :global(body.dived) .helm { opacity: 1; pointer-events: auto; }
-  .helm button {
-    display: inline-flex; align-items: center; gap: 8px; font: 500 13px var(--body); color: var(--text); cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none;
-    background: rgba(8, 18, 42, 0.55); border: 1px solid var(--line-strong); border-radius: 999px; padding: 11px 16px;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: background 0.2s, color 0.2s, transform 0.2s;
-  }
-  .helm button:hover { background: rgba(20, 44, 90, 0.7); }
-  .helm :global(button.held) { color: #03131f; background: var(--glow); border-color: var(--glow); transform: scale(0.97); }
-  .helm #rise { padding: 11px; }
-  .logbook {
-    position: fixed; left: 50%; top: 66px; transform: translateX(-50%); z-index: 9; margin: 0; display: flex; gap: 18px; white-space: nowrap;
-    font-size: 12px; color: var(--dim); opacity: 0; transition: opacity 0.5s; pointer-events: none; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
-  }
-  .logbook b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-  :global(body.dived.ocean-3d) .logbook { opacity: 1; }
-  #toast {
-    position: fixed; left: 50%; top: 98px; transform: translate(-50%, -8px); z-index: 14; margin: 0; pointer-events: none;
-    font-size: 14px; font-weight: 500; color: #03131f; background: linear-gradient(135deg, #8af7df, #6cc8ff); border-radius: 999px; padding: 9px 18px;
-    box-shadow: 0 10px 34px rgba(110, 243, 214, 0.35); opacity: 0; transition: opacity 0.4s, transform 0.4s; white-space: nowrap;
-  }
-  :global(#toast.show) { opacity: 1; transform: translate(-50%, 0); }
-  :global(#splash.dark) { background: #020714; }
-  @media (max-width: 640px) {
-    .helm { left: auto; right: 10px; bottom: 12px; transform: none; }
-    .helm button { font-size: 12px; padding: 10px 13px; }
-    .helm #random { font-size: 0; gap: 0; padding: 10px; }
-    .logbook { top: 104px; gap: 12px; font-size: 11px; }
-    #toast { top: 132px; font-size: 13px; }
-  }
   #hint { bottom: 70px; font-size: 12px; white-space: normal; text-align: center; border-radius: 16px; }
     #sound { left: 10px; bottom: 12px; }
   }
@@ -348,7 +405,8 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   #egg h2 { font-family: var(--display); font-weight: 400; font-size: 36px; line-height: 1.1; margin: 0; }
   #egg p { font-size: 15px; color: #c9d9f0; margin: 12px 0 22px; }
   #egg .depth { font-family: var(--display); font-size: 44px; line-height: 1; color: var(--gold); margin: 10px 0 0; }
-  #card[data-wild='true'] #card-details { color: var(--glow); box-shadow: inset 0 0 0 1px rgba(110, 243, 214, 0.5); }
+  #card .claim { flex-basis: 100%; font-size: 13px; color: var(--glow); text-decoration: none; margin-top: 2px; }
+  #card .claim:hover { text-decoration: underline; }
   @media (max-width: 640px) {
     #card { right: 12px; bottom: 12px; padding: 18px; border-radius: 20px; }
     #card-desc { max-height: 4.8em; margin: 12px 0; }

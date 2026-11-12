@@ -1,0 +1,109 @@
+---
+// One landing page per GitHub repo: /r/owner/repo.
+// There are far more repos than a static host will take files for, so the production build emits this
+// page once, as a template full of __TOKENS__, and worker/index.js fills it in per request.
+// `astro dev` (and STATIC_REPO_PAGES=1 builds) render every repo directly instead.
+import Base from '../../layouts/Base.astro';
+import { getCatalog, repoPage, REPO_URL, SITE, type RepoPage } from '../../lib/projects';
+
+export function getStaticPaths() {
+  if (import.meta.env.DEV || process.env.STATIC_REPO_PAGES) {
+    return getCatalog().entries.flatMap((e, i) => (e.repo && !e.slug ? [{ params: { repo: e.key }, props: { page: repoPage(i)! } }] : []));
+  }
+  const token = (k: string) => `__${k}__`;
+  const keys = ['KEY', 'REPO', 'NAME', 'OWNER', 'DESC', 'META', 'STARS', 'CREATED', 'DEPTH', 'ZONE', 'SPECIES', 'SPECIES_NAME', 'RARITY', 'RARITY_NAME', 'TINT', 'HUE'];
+  const page = { ...Object.fromEntries(keys.map((k) => [k, token(k)])), N: [] } as unknown as RepoPage;
+  return [{ params: { repo: '_template' }, props: { page, template: true } }];
+}
+interface Props { page: RepoPage; template?: boolean }
+const { page: p, template = false } = Astro.props;
+
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const neighbours = template ? '__NEIGHBOURS__' : p.N.map((r) => `<li><a href="/r/${esc(r.toLowerCase())}">${esc(r)}</a></li>`).join('');
+const jsonLd = template
+  ? '__JSON_LD__'
+  : JSON.stringify({
+      '@context': 'https://schema.org', '@type': 'SoftwareSourceCode', name: p.NAME, description: p.DESC,
+      codeRepository: `https://github.com/${p.REPO}`, author: { '@type': 'Person', name: p.OWNER, url: `https://github.com/${p.OWNER}` },
+    }).replace(/</g, '\\u003c');
+const badge = `[![${p.NAME} on dshsea](${SITE}/badge.svg)](${SITE}/r/${p.KEY})`;
+---
+<Base lang="en" path={`/r/${p.KEY}`} title={`${p.REPO} — DeepSeek Harness plugin`} description={p.META} single noindex={template}>
+  <script type="application/ld+json" set:html={jsonLd} />
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/">Ocean</a> <span>/</span> <a href="/all/1">All plugins</a> <span>/</span> <span>{p.REPO}</span>
+    </nav>
+    <article class="hero" data-rarity={p.RARITY}>
+      <div class="tank" style={`--hue:${p.HUE}`}>
+        <img class="creature" src={`/creatures/${p.SPECIES}.webp`} style={`--tint:${p.TINT}deg`} alt={`${p.NAME}, a ${p.SPECIES_NAME}`} />
+      </div>
+      <div class="info">
+        <span class="chip" data-rarity={p.RARITY}>{p.SPECIES_NAME} · {p.RARITY_NAME}</span>
+        <h1>{p.NAME}</h1>
+        <p class="lives">by <a href={`https://github.com/${p.OWNER}`} rel="noopener">{p.OWNER}</a> · lives {p.DEPTH} down · {p.ZONE}</p>
+        <p class="desc">{p.DESC}</p>
+        <dl>
+          <div><dt>Stars</dt><dd>★ {p.STARS}</dd></div>
+          <div><dt>Created</dt><dd>{p.CREATED}</dd></div>
+          <div><dt>Status</dt><dd>Wild · unclaimed</dd></div>
+        </dl>
+        <div class="actions">
+          <a class="btn" href={`https://github.com/${p.REPO}`} rel="noopener">View on GitHub ↗</a>
+          <a class="btn alt" href={`/?seek=${p.KEY}`}>Dive to it</a>
+          <a class="btn ghost" href={`/submit?repo=${p.REPO}`}>Is this yours? Claim it</a>
+        </div>
+      </div>
+    </article>
+
+    <h2>About {p.NAME}</h2>
+    <p class="prose">
+      <strong>{p.NAME}</strong> is a <a href="https://github.com/deepseek-ai/deepseek-harness" rel="noopener">DeepSeek Harness</a> (dsh) plugin,
+      published on GitHub by {p.OWNER} on {p.CREATED} at <a href={`https://github.com/${p.REPO}`} rel="noopener">github.com/{p.REPO}</a>.
+      In the dshsea ocean, where every dsh plugin is a sea creature, it is a {p.RARITY_NAME} {p.SPECIES_NAME} living {p.DEPTH} below the surface, in the region known as “{p.ZONE}”.
+      Older plugins live deeper; stars decide how big a creature grows.
+    </p>
+
+    <h2>Neighbours</h2>
+    <p class="lede">The plugins swimming just above and below.</p>
+    <ul class="near" set:html={neighbours} />
+
+    <h2>Put it on your README</h2>
+    <p class="lede">Is this your plugin? Show where it lives. <a href={`/submit?repo=${p.REPO}`}>Claiming it</a> also gets you your own description, a share card and a species of your choice.</p>
+    <p><img src="/badge.svg" alt="dshsea badge" height="28" /></p>
+    <pre class="code">{badge}</pre>
+    <p class="fine">Something wrong with this page, or want it removed? <a href={`${REPO_URL}/issues`} rel="noopener">Open an issue</a>.</p>
+  </main>
+</Base>
+
+<style>
+  .crumbs { font-size: 13px; color: var(--dim); margin-bottom: 24px; overflow-wrap: anywhere; }
+  .crumbs a { color: var(--sky); text-decoration: none; }
+  .crumbs span { margin: 0 4px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+  .tank {
+    aspect-ratio: 4 / 3; border-radius: 28px; border: 1px solid var(--line); display: grid; place-items: center; padding: 8%;
+    background:
+      radial-gradient(60% 60% at 50% 46%, hsl(calc(var(--hue) * 1deg) 80% 60% / 0.28), transparent 70%),
+      linear-gradient(160deg, rgba(20, 60, 120, 0.55), rgba(4, 12, 34, 0.8));
+  }
+  .tank img { max-height: 100%; object-fit: contain; animation: float 5s ease-in-out infinite; }
+  @keyframes float { 50% { transform: translateY(-10px); } }
+  @media (prefers-reduced-motion: reduce) { .tank img { animation: none; } }
+  .info { min-width: 0; }
+  .info h1 { margin: 16px 0 10px; overflow-wrap: anywhere; font-size: clamp(38px, 5vw, 62px); }
+  .lives { margin: 0 0 18px; color: var(--glow); font-size: 15px; }
+  .lives a { text-underline-offset: 3px; }
+  .desc { margin: 0 0 24px; color: #c9d9f0; font-size: 17px; overflow-wrap: anywhere; }
+  dl { display: flex; flex-wrap: wrap; gap: 30px; margin: 0 0 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+  dt { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 2px; }
+  dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .prose { color: #c9d9f0; font-size: 17px; max-width: 70ch; }
+  .prose a, .lede a, .fine a { color: var(--sky); text-underline-offset: 3px; }
+  .near { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+  .near :global(a) { display: block; font-size: 14px; text-decoration: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); overflow-wrap: anywhere; }
+  .near :global(a:hover) { border-color: var(--line-strong); color: var(--glow); }
+  .fine { font-size: 13px; color: var(--dim); margin-top: 28px; }
+  @media (max-width: 820px) { .hero { grid-template-columns: 1fr; gap: 24px; } }
+</style>

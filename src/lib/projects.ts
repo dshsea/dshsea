@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadProjects, CATEGORIES } from '../../scripts/lib/load-projects.mjs';
-import { traits, depthOf, type Rarity, type SpeciesId } from './species';
+import { traits, depthOf, fmtDepth, zoneFor, tintDeg, type Rarity, type SpeciesId } from './species';
+import { dict } from './i18n';
 
 /** One creature in the ocean: either crawled from GitHub ("wild") or claimed through a PR. */
 export type Entry = {
@@ -72,9 +73,47 @@ export function chunkRows(n: number) {
   );
 }
 
+// ----- one landing page per GitHub repo (/r/owner/repo) -----
+export const REPO_BUCKETS = 256;
+/** Everything a repo page shows, as strings. The keys double as the `__TOKEN__` names in the page template. */
+export type RepoPage = {
+  KEY: string; REPO: string; NAME: string; OWNER: string; DESC: string; META: string; STARS: string; CREATED: string;
+  DEPTH: string; ZONE: string; SPECIES: string; SPECIES_NAME: string; RARITY: string; RARITY_NAME: string; TINT: string; HUE: string;
+  /** Neighbours in the water column: three above, three below. */
+  N: string[];
+  /** Slug, when the repo has been claimed: its page lives at /p/<slug> instead. */
+  P?: string;
+};
+const en = dict('en');
+const DATE = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+
+export function repoPage(index: number): RepoPage | null {
+  const { entries } = getCatalog();
+  const e = entries[index];
+  if (!e?.repo) return null;
+  const tr = traits(e.key, e.stars, e.pick);
+  const depth = depthOf(index);
+  const [owner, name] = e.repo.split('/');
+  const desc = e.desc || `A DeepSeek Harness plugin by ${owner}. Nobody has told its story yet.`;
+  const meta = `${name} by ${owner}: ${desc}`;
+  const N: string[] = [];
+  for (let i = index - 3; i <= index + 3; i++) if (i !== index && entries[i]?.repo) N.push(entries[i].repo!);
+  return {
+    KEY: e.key, REPO: e.repo, NAME: name, OWNER: owner, DESC: desc, META: meta.length > 158 ? `${meta.slice(0, 157)}…` : meta,
+    STARS: fmt(e.stars), CREATED: DATE.format(new Date(`${e.created}T00:00:00Z`)),
+    DEPTH: fmtDepth(depth), ZONE: en.zones[zoneFor(depth)], SPECIES: tr.species, SPECIES_NAME: en.speciesNames[tr.species],
+    RARITY: tr.rarity, RARITY_NAME: en.rarityNames[tr.rarity], TINT: String(tintDeg(tr.hue)), HUE: String(tr.hue),
+    N, ...(e.slug ? { P: e.slug } : {}),
+  };
+}
+/** Where a creature's own page lives. */
+export const pagePath = (e: Entry) => (e.slug ? `/p/${e.slug}` : e.repo ? `/r/${e.key}` : '/');
+
 export { CATEGORIES };
 export const SITE = 'https://dshsea.com';
 export const REPO = 'dshsea/dshsea';
 export const REPO_URL = `https://github.com/${REPO}`;
 
-export const fmt = (n: number) => n.toLocaleString('en-US');
+export function fmt(n: number) {
+  return n.toLocaleString('en-US');
+}

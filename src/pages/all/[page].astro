@@ -1,0 +1,51 @@
+---
+// A plain, paginated index of every creature, so crawlers (and people) can reach every repo page.
+import Base from '../../layouts/Base.astro';
+import { getCatalog, pagePath, fmt } from '../../lib/projects';
+import { depthOf, fmtDepth } from '../../lib/species';
+
+// getStaticPaths is hoisted out of the frontmatter, so the page size travels through props.
+export function getStaticPaths() {
+  const PER = 1000;
+  const { entries } = getCatalog();
+  const pages = Math.max(1, Math.ceil(entries.length / PER));
+  return Array.from({ length: pages }, (_, i) => ({ params: { page: String(i + 1) }, props: { n: i + 1, pages, PER } }));
+}
+const { n, pages, PER } = Astro.props;
+const { entries } = getCatalog();
+const start = (n - 1) * PER;
+const rows = entries.slice(start, start + PER);
+const from = fmtDepth(depthOf(start)), to = fmtDepth(depthOf(start + rows.length - 1));
+---
+<Base lang="en" path={`/all/${n}`} single title={`All DeepSeek Harness plugins, ${from} to ${to}`}
+  description={`Every DeepSeek Harness (dsh) plugin on GitHub, newest first. Page ${n} of ${pages}: ${fmt(rows.length)} plugins living between ${from} and ${to} deep.`}>
+  <main class="page">
+    <h1>All <em>{fmt(entries.length)}</em> plugins</h1>
+    <p class="lede">Every DeepSeek Harness plugin on GitHub, from the newest near the surface to the oldest in the deep. Page {n} of {pages}: {from} to {to}.</p>
+    <ul class="rows">
+      {rows.map((e) => (
+        <li>
+          <a href={pagePath(e)}>{e.repo ?? e.name}</a>
+          {e.stars > 0 && <span>★ {fmt(e.stars)}</span>}
+          {e.desc && <p>{e.desc}</p>}
+        </li>
+      ))}
+    </ul>
+    <nav class="pager" aria-label="Pages">
+      {Array.from({ length: pages }, (_, i) => (i + 1 === n ? <b>{i + 1}</b> : <a href={`/all/${i + 1}`}>{i + 1}</a>))}
+    </nav>
+  </main>
+</Base>
+
+<style>
+  .rows { list-style: none; margin: 0; padding: 0; columns: 2 380px; column-gap: 28px; }
+  .rows li { break-inside: avoid; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .rows a { font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+  .rows a:hover { color: var(--glow); }
+  .rows span { font-size: 12px; color: var(--gold); margin-left: 8px; }
+  .rows p { margin: 2px 0 0; font-size: 13px; color: var(--dim); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pager { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 36px; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .pager a, .pager b { min-width: 36px; text-align: center; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line); text-decoration: none; }
+  .pager b { background: var(--text); color: #04102a; border-color: var(--text); }
+  .pager a:hover { border-color: var(--line-strong); }
+</style>

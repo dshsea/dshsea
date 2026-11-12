@@ -5,7 +5,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { SPECIES_IDS, creatureSrc, tintDeg, zoneFor, traits, depthOf, fmtDepth, DEPTH_START, DEPTH_STEP, type SpeciesId } from '../lib/species';
+import { SPECIES_IDS, SPECIES_RARITY, creatureSrc, tintDeg, zoneFor, traits, depthOf, fmtDepth, DEPTH_START, DEPTH_STEP, type SpeciesId } from '../lib/species';
 import { SPECIES, creatureMaterial, speciesGeometry, schoolFishGeometry } from './creatures3d';
 import {
   TRAIL, clamp, smooth, rand, BASIC_VERT, WATER_FRAG, SKY_FRAG, RAY_FRAG, PLANKTON_VERT, PLANKTON_FRAG,
@@ -19,7 +19,7 @@ type Creature = {
   slug: string | null; species: SpeciesId; rarity: string; hue: number;
   group: THREE.Group; mesh: THREE.Mesh; mat: THREE.ShaderMaterial; halo: THREE.Sprite; label: THREE.Sprite;
   base: THREE.Vector3; az: number; frac: number; size: number; shape: THREE.Vector3; phase: number; speed: number; swims: boolean;
-  hay: string; near: number; revealAt: number; known: boolean; screen: Screen;
+  hay: string; near: number; revealAt: number; spinAt: number; known: boolean; screen: Screen;
 };
 type Payload = {
   base: string;
@@ -180,47 +180,138 @@ export async function initOcean3D() {
   const dummy = new THREE.Object3D();
 
   // ----- the logbook: what this visitor has discovered, kept in localStorage -----
-  type Log = { seen: Record<string, 1>; species: Record<string, 1>; deepest: number };
-  let log: Log = { seen: {}, species: {}, deepest: 0 };
+  type Find = [name: string, stars: number, species: SpeciesId, hue: number, path: string];
+  type Log = { seen: Record<string, 1>; species: Record<string, number>; rarity: Record<string, 1>; best: Find[]; ach: Record<string, 1>; deepest: number };
+  let log: Log = { seen: {}, species: {}, rarity: {}, best: [], ach: {}, deepest: 0 };
   try {
     log = { ...log, ...JSON.parse(localStorage.getItem(LOG_KEY) ?? '{}') };
   } catch {
     /* private mode: the log just lasts for this visit */
   }
-  let logDirty = false, toastTimer = 0;
+  let logDirty = false, toastBusy = false;
+  const toasts: string[] = [];
+  function toast(text: string) {
+    toasts.push(text);
+    if (toastBusy) return;
+    toastBusy = true;
+    const el = $('toast');
+    const next = () => {
+      const msg = toasts.shift();
+      if (!msg) {
+        toastBusy = false;
+        return;
+      }
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(next, 350);
+      }, 2600);
+    };
+    next();
+  }
+
+  // Achievements: [id, earned?]. Titles and descriptions come from the translations.
+  const seenCount = () => Object.keys(log.seen).length;
+  const speciesCount = () => Object.keys(log.species).length;
+  const ACH: [string, () => boolean][] = [
+    ['first', () => seenCount() >= 1], ['d25', () => seenCount() >= 25], ['d100', () => seenCount() >= 100], ['d500', () => seenCount() >= 500],
+    ['sp8', () => speciesCount() >= 8], ['sp16', () => speciesCount() >= 16], ['spAll', () => speciesCount() >= SPECIES_IDS.length],
+    ['rare', () => !!log.rarity.rare], ['epic', () => !!log.rarity.epic], ['whale', () => !!log.species.whale],
+    ['dive1', () => log.deepest >= 1000], ['dive11', () => log.deepest >= 11000], ['dive100', () => log.deepest >= 100000],
+    ['bottom', () => log.deepest >= SEABED - 80], ['photo', () => !!log.ach.photo],
+  ];
+  function checkAchievements() {
+    for (const [id, earned] of ACH) {
+      if (log.ach[id] || !earned()) continue;
+      log.ach[id] = 1;
+      toast(t.achToast.replace('{name}', t.ach[id][0]));
+      sound.blip();
+    }
+  }
   function renderLog() {
-    $('log-seen').textContent = fmt(Object.keys(log.seen).length);
-    $('log-species').textContent = `${Object.keys(log.species).length}/${SPECIES_IDS.length}`;
+    $('log-seen').textContent = fmt(seenCount());
+    $('log-species').textContent = `${speciesCount()}/${SPECIES_IDS.length}`;
     $('log-deepest').textContent = fmtDepth(log.deepest);
   }
-  function toast(text: string) {
-    const el = $('toast');
-    el.textContent = text;
-    el.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => el.classList.remove('show'), 3800);
+  function renderDex() {
+    const img = (species: SpeciesId, hue: number | null) => {
+      const el = document.createElement('img');
+      el.src = creatureSrc(species);
+      el.alt = '';
+      if (hue !== null) el.style.filter = `hue-rotate(${tintDeg(hue)}deg)`;
+      return el;
+    };
+    $('dex-grid').replaceChildren(...SPECIES_IDS.map((id) => {
+      const n = log.species[id] ?? 0;
+      const li = document.createElement('li');
+      li.dataset.rarity = SPECIES_RARITY[id];
+      li.classList.toggle('locked', !n);
+      const name = document.createElement('b');
+      name.textContent = n ? t.speciesNames[id] : '???';
+      const sub = document.createElement('small');
+      sub.textContent = n ? `× ${fmt(n)}` : t.rarityNames[SPECIES_RARITY[id]];
+      li.append(img(id, null), name, sub);
+      return li;
+    }));
+    const best = $('dex-best');
+    best.replaceChildren(...log.best.map(([name, stars, species, hue, path]) => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = path;
+      a.textContent = name;
+      const st = document.createElement('span');
+      st.textContent = `★ ${fmt(stars)}`;
+      li.append(img(species, hue), a, st);
+      return li;
+    }));
+    if (!log.best.length) best.textContent = t.bestEmpty;
+    $('dex-ach').replaceChildren(...ACH.map(([id]) => {
+      const li = document.createElement('li');
+      li.classList.toggle('done', !!log.ach[id]);
+      const b = document.createElement('b');
+      b.textContent = t.ach[id][0];
+      li.append(b, t.ach[id][1]);
+      return li;
+    }));
+    $('dex-ach-count').textContent = `${Object.keys(log.ach).length}/${ACH.length}`;
   }
+  const pageOf = (c: { slug: string | null; repo: string | null }) =>
+    c.slug ? `${payload.base}/p/${c.slug}` : c.repo ? `/r/${c.repo.toLowerCase()}` : payload.base || '/';
   function discover(c: Creature) {
     if (c.known) return;
     c.known = true;
     log.seen[c.key] = 1;
-    logDirty = true;
-    if (!log.species[c.species]) {
-      log.species[c.species] = 1;
+    log.rarity[c.rarity] = 1;
+    const firstOfKind = !log.species[c.species];
+    log.species[c.species] = (log.species[c.species] ?? 0) + 1;
+    if (firstOfKind) {
       toast(t.newSpecies.replace('{species}', t.speciesNames[c.species]).replace('{rarity}', t.rarityNames[c.rarity]));
       sound.blip();
     }
+    // Keep the six biggest finds for the field guide.
+    if (c.stars > 0 && (log.best.length < 6 || c.stars > log.best[log.best.length - 1][1])) {
+      log.best = [...log.best, [c.name, c.stars, c.species, c.hue, pageOf(c)] as Find].sort((x, y) => y[1] - x[1]).slice(0, 6);
+    }
+    logDirty = true;
   }
   setInterval(() => {
     if (!logDirty) return;
     logDirty = false;
+    checkAchievements();
     renderLog();
+    if (!$('dex').hidden) renderDex();
     try {
       localStorage.setItem(LOG_KEY, JSON.stringify(log));
     } catch {
       /* ignore */
     }
-  }, 1200);
+  }, 1000);
+  $('logbook').addEventListener('click', () => {
+    renderDex();
+    $('dex').hidden = false;
+  });
+  for (const x of document.querySelectorAll<HTMLElement>('[data-close]')) x.addEventListener('click', () => (x.closest<HTMLElement>('.sheet')!.hidden = true));
 
   // ----- creatures: streamed in around the diver, disposed when left behind -----
   const chunks = new Map<number, Row[] | null>();
@@ -278,7 +369,7 @@ export async function initOcean3D() {
       index, key, name, desc, stars, depth: depthOf(index), url: isUrl ? repoOrUrl : `https://github.com/${repoOrUrl}`, repo: isUrl ? null : repoOrUrl,
       slug: row[3] ?? null, species: tr.species, rarity: tr.rarity, hue: tr.hue,
       group, mesh, mat, halo, label, base: new THREE.Vector3(), az: 0, frac: frac(index * 0.7548776662), size, shape, phase,
-      speed: 0.2 + ((tr.hue * 7) % 100) / 520, swims: spec.swims, near: 0, revealAt: -99, known: !!log.seen[key], screen: null,
+      speed: 0.2 + ((tr.hue * 7) % 100) / 520, swims: spec.swims, near: 0, revealAt: -99, spinAt: -99, known: !!log.seen[key], screen: null,
       hay: `${repoOrUrl} ${name} ${desc} ${tr.species} ${t.speciesNames[tr.species]}`.toLowerCase(),
     };
     place(c);
@@ -497,6 +588,7 @@ export async function initOcean3D() {
   let selected: Creature | null = null;
   let query = '';
   let wasAbove = true, pingStart = -99, hintShown = false, time = 0, lastGauge = -1;
+  let wantPhoto = false, trackAt = 0, trackTarget = -1;
 
   const proj = new THREE.Vector3(), ray = new THREE.Vector3(), tmp = new THREE.Vector3(), pingPos = new THREE.Vector3();
   const lampTarget = new THREE.Vector3(0, -5, -8), lastTrail = new THREE.Vector3(0, 9999, 0);
@@ -694,8 +786,11 @@ export async function initOcean3D() {
       tmp.copy(camera.position).sub(g);
       const dist0 = tmp.length();
       g.addScaledVector(tmp.normalize(), c.near * Math.min(2.6, dist0 * 0.22));
-      if (c.swims) c.mesh.rotation.set(0, Math.atan2(Math.sin(a) * az, Math.cos(a) * ax), 0);
-      else c.mesh.rotation.set(0, Math.sin(time * 0.3 + c.phase) * 0.6, Math.sin(time * 0.5 + c.phase) * 0.08);
+      // A creature you have just met does a little twirl.
+      const sp = clamp((time - c.spinAt) / 1.1, 0, 1);
+      const twirl = sp < 1 ? (1 - (1 - sp) ** 3) * Math.PI * 2 : 0;
+      if (c.swims) c.mesh.rotation.set(0, Math.atan2(Math.sin(a) * az, Math.cos(a) * ax) + twirl, 0);
+      else c.mesh.rotation.set(0, Math.sin(time * 0.3 + c.phase) * 0.6 + twirl, Math.sin(time * 0.5 + c.phase) * 0.08);
       const grow = c.size * (1 + c.near * 0.12);
       c.mesh.scale.set(c.shape.x * grow, c.shape.y * grow, c.shape.z * grow);
 
@@ -770,6 +865,29 @@ export async function initOcean3D() {
       }
     }
 
+    // The tracker points at the nearest giant this visitor has not identified yet.
+    if (time - trackAt > 0.4) {
+      trackAt = time;
+      let best = -1, bestDist = Infinity;
+      for (const [index, key] of payload.meta.landmarks) {
+        if (log.seen[key]) continue;
+        const dist = Math.abs(depthOf(index) - camDepth);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = index;
+        }
+      }
+      trackTarget = best;
+      const el = $('tracker');
+      el.hidden = best < 0 || above;
+      if (best >= 0) {
+        const delta = depthOf(best) - camDepth;
+        const near = Math.abs(delta) < 160;
+        el.classList.toggle('near', near);
+        el.lastElementChild!.textContent = near ? t.trackNear : (delta > 0 ? t.trackBelow : t.trackAbove).replace('{d}', fmtDepth(Math.abs(delta)));
+      }
+    }
+
     const gd = Math.round(depth);
     if (gd !== lastGauge) {
       lastGauge = gd;
@@ -780,11 +898,77 @@ export async function initOcean3D() {
     }
 
     composer.render(dt);
+    if (wantPhoto) {
+      wantPhoto = false;
+      takePhoto(); // must read the canvas in the same task it was drawn in
+    }
     requestAnimationFrame(frame);
   }
 
+  // ----- photo mode: the current view as a captioned picture, ready to post -----
+  function takePhoto() {
+    // The subject is whatever identified creature is closest to the middle of the frame.
+    let subject: Creature | null = selected;
+    if (!subject) {
+      let bestD = Infinity;
+      for (const c of live.values()) {
+        if (!c.known || !c.screen || c.screen.d > 40) continue;
+        const d = Math.hypot(c.screen.x - vw / 2, c.screen.y - vh / 2);
+        if (d < bestD && d < Math.min(vw, vh) * 0.42) {
+          bestD = d;
+          subject = c;
+        }
+      }
+    }
+    const W = 1600, H = Math.round((1600 * vh) / vw);
+    const cv = document.createElement('canvas');
+    cv.width = W;
+    cv.height = H;
+    const g = cv.getContext('2d')!;
+    g.drawImage(canvas, 0, 0, W, H);
+    const shade = g.createLinearGradient(0, H * 0.62, 0, H);
+    shade.addColorStop(0, 'rgba(2,7,20,0)');
+    shade.addColorStop(1, 'rgba(2,7,20,0.82)');
+    g.fillStyle = shade;
+    g.fillRect(0, H * 0.62, W, H * 0.38);
+    const depthText = fmtDepth(Math.max(camDepth, 0));
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = '#ffffff';
+    g.font = '400 76px "Instrument Serif", Georgia, serif';
+    g.fillText(subject ? subject.name : depthText, 60, H - 96, W - 420);
+    g.font = '500 28px Inter, system-ui, sans-serif';
+    g.fillStyle = '#6ef3d6';
+    g.fillText(subject ? `${t.speciesNames[subject.species]} · ${t.rarityNames[subject.rarity]} · ${fmtDepth(subject.depth)} · ★ ${fmt(subject.stars)}` : t.zones[zoneFor(Math.max(camDepth, 0))], 60, H - 50, W - 420);
+    g.textAlign = 'right';
+    g.fillStyle = '#ffffff';
+    g.font = 'italic 400 46px "Instrument Serif", Georgia, serif';
+    g.fillText('dshsea.com', W - 60, H - 52);
+    const url = cv.toDataURL('image/jpeg', 0.9);
+    ($('shot-img') as HTMLImageElement).src = url;
+    const save = $('shot-save') as HTMLAnchorElement;
+    save.href = url;
+    save.download = `dshsea-${subject ? subject.name.replace(/[^\w.-]+/g, '-') : Math.round(Math.max(camDepth, 0)) + 'm'}.jpg`;
+    const text = subject
+      ? t.photoTweetAt.replace('{name}', subject.name).replace('{species}', t.speciesNames[subject.species].toLowerCase()).replace('{depth}', fmtDepth(subject.depth))
+      : t.photoTweet.replace('{depth}', depthText);
+    ($('shot-post') as HTMLAnchorElement).href =
+      `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.origin + (subject ? pageOf(subject) : payload.base || '/'))}`;
+    $('shot').hidden = false;
+    flash(false);
+    if (!log.ach.photo) {
+      log.ach.photo = 1;
+      toast(t.achToast.replace('{name}', t.ach.photo[0]));
+      logDirty = true;
+    }
+  }
+  $('photo').addEventListener('click', () => (wantPhoto = true));
+  // Following the signal drops you a little above the target: the last stretch is yours to search.
+  $('tracker').addEventListener('click', () => {
+    if (trackTarget >= 0) teleport(depthOf(trackTarget) - 140);
+  });
+
   // ----- diving controls -----
-  const inPanel = (el: EventTarget | null) => el instanceof Element && !!el.closest('#card, #egg, #sonar-results, input');
+  const inPanel = (el: EventTarget | null) => el instanceof Element && !!el.closest('#card, #egg, .sheet, #sonar-results, input');
   window.addEventListener('wheel', (e) => {
     if (e.ctrlKey || inPanel(e.target)) return;
     e.preventDefault();
@@ -830,9 +1014,10 @@ export async function initOcean3D() {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeCard();
-      $('egg').hidden = true;
+      for (const id of ['egg', 'dex', 'shot']) $(id).hidden = true;
       return;
     }
+    if (e.key === 'p' && document.activeElement !== sonar) wantPhoto = true;
     if (document.activeElement === sonar) return;
     if (e.key === '/') {
       e.preventDefault();
@@ -922,6 +1107,7 @@ export async function initOcean3D() {
   function openCard(c: Creature) {
     selected = c;
     c.revealAt = time;
+    c.spinAt = time;
     discover(c);
     const img = $<HTMLImageElement>('card-img');
     img.src = creatureSrc(c.species);
@@ -935,10 +1121,13 @@ export async function initOcean3D() {
     $('card-stars').textContent = `★ ${fmt(c.stars)}`;
     $('card-status').textContent = c.slug ? t.claimed : t.wild;
     ($('card-visit') as HTMLAnchorElement).href = c.url;
-    const page = c.slug ? `${payload.base}/p/${c.slug}` : `${payload.base || '/'}?seek=${encodeURIComponent(c.repo ?? c.name)}`;
+    const page = pageOf(c);
     const details = $('card-details') as HTMLAnchorElement;
-    details.textContent = c.slug ? t.details : t.claim;
-    details.href = c.slug ? page : `${payload.base}/submit?repo=${encodeURIComponent(c.repo ?? '')}`;
+    details.textContent = t.details;
+    details.href = page;
+    const claim = $('card-claim') as HTMLAnchorElement;
+    claim.hidden = !!c.slug || !c.repo;
+    claim.href = `${payload.base}/submit?repo=${encodeURIComponent(c.repo ?? '')}`;
     const text = t.shareTweet.replace('{name}', c.name).replace('{species}', t.speciesNames[c.species].toLowerCase()).replace('{depth}', fmtDepth(c.depth));
     ($('card-share') as HTMLAnchorElement).href =
       `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.origin + page)}`;
@@ -1028,6 +1217,7 @@ export async function initOcean3D() {
 
   window.addEventListener('resize', resize);
   resize();
+  checkAchievements();
   renderLog();
 
   // Deep links: ?seek=<claimed slug or owner/repo>, ?d=<metres>.
