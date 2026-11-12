@@ -2,6 +2,8 @@
   // Static site on Cloudflare Workers (static assets only, no server code).
   "name": "dshsea",
   "compatibility_date": "2026-11-01",
+  "routes": [{ "pattern": "dshsea.com", "custom_domain": true }],
+  "workers_dev": false,
   "assets": {
     "directory": "./dist",
     "not_found_handling": "404-page"
