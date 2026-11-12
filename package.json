@@ -1,0 +1,29 @@
+{
+  "name": "dshsea",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "node scripts/validate.mjs && astro build",
+    "preview": "astro preview",
+    "validate": "node scripts/validate.mjs",
+    "sync-stars": "node scripts/sync-stars.mjs",
+    "render-species": "node scripts/render-species.mjs"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "astro": "^7.4.11",
+    "satori": "^0.63.2",
+    "sharp": "^0.35.5",
+    "three": "^0.187.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.187.0",
+    "playwright-core": "^1.65.0"
+  }
+}

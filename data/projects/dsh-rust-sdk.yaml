@@ -1,0 +1,5 @@
+name: "dsh-rust-sdk"
+repo: 42ch-dev/dsh-rust-sdk
+category: tools
+description: "Rust SDK for DSH(Deepseek Harness)"
+added: 2026-11-12

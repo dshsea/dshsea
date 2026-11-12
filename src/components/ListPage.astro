@@ -1,0 +1,118 @@
+---
+import Base from '../layouts/Base.astro';
+import { dict, href, type Lang } from '../lib/i18n';
+import { getCatalog, getProjects, CATEGORIES, fmt } from '../lib/projects';
+import { creatureSrc, tintStyle, traits, depthOf, fmtDepth } from '../lib/species';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = dict(lang);
+const projects = [...getProjects()].sort((a, b) => b.stars - a.stars);
+const used = CATEGORIES.filter((c: string) => projects.some((p) => p.category === c));
+const { entries } = getCatalog();
+const total = fmt(entries.length);
+// The biggest creatures nobody has claimed yet.
+const giants = entries
+  .map((e, index) => ({ e, index }))
+  .filter(({ e }) => !e.slug)
+  .sort((a, b) => b.e.stars - a.e.stars)
+  .slice(0, 60)
+  .map(({ e, index }) => ({ ...e, depth: depthOf(index), ...traits(e.key, e.stars) }));
+---
+<Base lang={lang} path="/list" title={t.listTitle} description={t.listSub(projects.length, total)}>
+  <main class="page">
+    <h1>{t.listTitle}</h1>
+    <p class="lede">{t.listSub(projects.length, total)}</p>
+    <div class="filters" role="group">
+      <button data-cat="" aria-pressed="true">{t.all}</button>
+      {used.map((c: string) => <button data-cat={c} aria-pressed="false">{(t.categoryNames as any)[c]}</button>)}
+    </div>
+    <ul class="grid">
+      {projects.map((p) => (
+        <li class="panel" data-cat={p.category} data-rarity={p.rarity}>
+          <a class="thumb" href={href(lang, `/p/${p.slug}`)} tabindex="-1" aria-hidden="true">
+            <img class="creature" src={creatureSrc(p.species)} style={tintStyle(p.hue)} alt="" loading="lazy" />
+          </a>
+          <div class="body">
+            <p class="meta">
+              <span class="chip" data-rarity={p.rarity}>{t.speciesNames[p.species]} · {t.rarityNames[p.rarity]}</span>
+              <span>★ {fmt(p.stars)}</span>
+              <span>{fmtDepth(p.depth)}</span>
+            </p>
+            <h2><a href={href(lang, `/p/${p.slug}`)}>{p.name}</a></h2>
+            <p class="desc">{(lang === 'zh' && p.descriptionZh) || p.description}</p>
+            <a class="out" href={p.url} rel="noopener" target="_blank">{p.repo ?? new URL(p.url).hostname} ↗</a>
+          </div>
+        </li>
+      ))}
+    </ul>
+
+    {giants.length > 0 && (
+      <>
+        <h2>{t.wildTitle}</h2>
+        <p class="lede">{t.wildSub}</p>
+        <ul class="wild">
+          {giants.map((g) => (
+            <li class="panel">
+              <img class="creature" src={creatureSrc(g.species)} style={tintStyle(g.hue)} alt="" loading="lazy" />
+              <div>
+                <a class="name" href={`${href(lang, '/')}?seek=${encodeURIComponent(g.repo!)}`}>{g.repo}</a>
+                <span>★ {fmt(g.stars)} · {t.speciesNames[g.species]} · {fmtDepth(g.depth)}</span>
+              </div>
+              <a class="claim" href={`${href(lang, '/submit')}?repo=${encodeURIComponent(g.repo!)}`}>{t.claim} →</a>
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
+  </main>
+  <script>
+    const buttons = document.querySelectorAll<HTMLButtonElement>('.filters button');
+    const items = document.querySelectorAll<HTMLElement>('.grid li');
+    buttons.forEach((b) =>
+      b.addEventListener('click', () => {
+        buttons.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        items.forEach((li) => (li.hidden = !!b.dataset.cat && li.dataset.cat !== b.dataset.cat));
+      }),
+    );
+  </script>
+</Base>
+
+<style>
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+  .filters button {
+    font: 500 13px var(--body); color: var(--dim); background: rgba(160, 200, 255, 0.07); border: 1px solid var(--line);
+    border-radius: 999px; padding: 8px 16px; cursor: pointer; transition: color 0.2s, background 0.2s, border-color 0.2s;
+  }
+  .filters button:hover { color: var(--text); border-color: var(--line-strong); }
+  .filters button[aria-pressed='true'] { background: var(--text); border-color: var(--text); color: #04102a; }
+  .grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 16px; }
+  .grid li { display: flex; gap: 18px; align-items: center; transition: border-color 0.25s, transform 0.25s, background 0.25s; }
+  .grid li:hover { border-color: var(--line-strong); transform: translateY(-2px); background: rgba(14, 30, 66, 0.66); }
+  .grid li[data-rarity='legendary'] { border-color: rgba(245, 210, 122, 0.35); }
+  .thumb { flex: none; width: 150px; aspect-ratio: 4 / 3; }
+  .thumb img { width: 100%; height: 100%; object-fit: contain; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .grid li:hover .thumb img { transform: scale(1.08) rotate(-2deg); }
+  .body { min-width: 0; }
+  .meta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0 0 8px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .body h2 { font: 400 26px/1.15 var(--display); letter-spacing: -0.01em; margin: 0 0 6px; color: #fff; overflow-wrap: anywhere; }
+  .body h2 a { text-decoration: none; }
+  .body h2 a:hover { color: var(--glow); }
+  .desc { margin: 0 0 10px; font-size: 14px; color: #c3d3ea; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .out { font-size: 13px; color: var(--sky); text-decoration: none; overflow-wrap: anywhere; }
+  .out:hover { color: var(--glow); }
+  .wild { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .wild li { display: flex; align-items: center; gap: 16px; padding: 12px 18px; }
+  .wild img { width: 72px; height: 54px; object-fit: contain; flex: none; }
+  .wild div { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+  .wild .name { font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+  .wild .name:hover { color: var(--glow); }
+  .wild span { font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .wild .claim { flex: none; font-size: 13px; color: var(--glow); text-decoration: none; white-space: nowrap; }
+  @media (max-width: 520px) {
+    .wild .claim { display: none; }
+    .grid li { align-items: flex-start; gap: 12px; padding: 16px; }
+    .thumb { width: 92px; }
+    .body h2 { font-size: 22px; }
+  }
+</style>

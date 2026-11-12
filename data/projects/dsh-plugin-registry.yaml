@@ -1,0 +1,5 @@
+name: "dsh-plugin-registry"
+repo: vbarter/dsh-plugin-registry
+category: resources
+description: "DeepSeek Harness community plugin registry: browse, publish, and auto-discover dsh-plugin repos."
+added: 2026-11-12

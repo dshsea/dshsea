@@ -1,0 +1,109 @@
+---
+import Base from '../layouts/Base.astro';
+import { dict, type Lang } from '../lib/i18n';
+import { CATEGORIES, REPO_URL } from '../lib/projects';
+import { SPECIES_IDS, SPECIES_RARITY, creatureSrc, tintStyle } from '../lib/species';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = dict(lang);
+const today = new Date().toISOString().slice(0, 10);
+const template = `name: "My Plugin"
+repo: owner/my-plugin   # not on GitHub? use  url: https://example.com
+category: tools         # ${CATEGORIES.join(' | ')}
+description: "One or two sentences on what it does (10-200 characters)."
+added: ${today}
+# optional:
+# species: manta        # pick from the list below
+# description_zh: "中文简介"
+# x: your_x_handle
+`;
+const newFileUrl = `${REPO_URL}/new/main/data/projects?filename=your-project.yaml&value=${encodeURIComponent(template)}`;
+const steps = [
+  [t.step1, t.step1Body],
+  [t.step2, t.step2Body],
+  [t.step3, t.step3Body],
+];
+const rarities = ['common', 'rare', 'epic', 'legendary'] as const;
+---
+<Base lang={lang} path="/submit" title={t.submitTitle} description={t.submitSub}>
+  <main class="page">
+    <h1>{t.submitTitle}</h1>
+    <p class="lede">{t.submitSub}</p>
+
+    <ol class="steps">
+      {steps.map(([title, body], i) => (
+        <li class="panel">
+          <span class="n">{i + 1}</span>
+          <h3>{title}</h3>
+          <p>{body}</p>
+        </li>
+      ))}
+    </ol>
+
+    <pre class="code">{template}</pre>
+    <p class="go"><a class="btn" id="open-pr" href={newFileUrl} rel="noopener" target="_blank">{t.openPr} ↗</a></p>
+
+    <h2>{t.speciesTitle}</h2>
+    <p class="lede">{t.speciesSub}</p>
+    <ul class="species">
+      {SPECIES_IDS.map((id, i) => (
+        <li class="panel" data-rarity={SPECIES_RARITY[id]}>
+          <img class="creature" src={creatureSrc(id)} style={tintStyle((i * 47 + 150) % 360)} alt="" loading="lazy" />
+          <strong>{t.speciesNames[id]}</strong>
+          <span class="chip" data-rarity={SPECIES_RARITY[id]}>{t.rarityNames[SPECIES_RARITY[id]]}</span>
+          <code>{id === 'whale' ? '100k+ ★' : id}</code>
+        </li>
+      ))}
+    </ul>
+
+    <h2>{t.rarityTitle}</h2>
+    <ul class="rarity">
+      {rarities.map((r) => (
+        <li><span class="chip" data-rarity={r}>{t.rarityNames[r]}</span> {t.rarityRules[r]}</li>
+      ))}
+    </ul>
+
+    <h2>{t.rulesTitle}</h2>
+    <ul class="rules">
+      {t.rules.map((r) => <li>{r}</li>)}
+    </ul>
+  </main>
+  <script>
+    // Arriving from "Claim it" in the ocean: prefill the template with that repo.
+    const repo = new URLSearchParams(location.search).get('repo');
+    if (repo && /^[\w.-]+\/[\w.-]+$/.test(repo)) {
+      const name = repo.split('/')[1];
+      const fill = (text: string) => text.replace('owner/my-plugin', repo).replace('"My Plugin"', JSON.stringify(name));
+      const pre = document.querySelector('pre.code')!;
+      pre.textContent = fill(pre.textContent ?? '');
+      const link = document.getElementById('open-pr') as HTMLAnchorElement;
+      const url = new URL(link.href);
+      url.searchParams.set('filename', `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.yaml`);
+      url.searchParams.set('value', fill(url.searchParams.get('value') ?? ''));
+      link.href = url.href;
+    }
+  </script>
+</Base>
+
+<style>
+  .steps { list-style: none; padding: 0; margin: 0 0 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .steps .n { font-family: var(--display); font-style: italic; font-size: 54px; line-height: 0.9; color: var(--glow); }
+  .steps h3 { margin: 14px 0 6px; font: 600 18px var(--body); }
+  .steps p { margin: 0; color: var(--dim); font-size: 15px; }
+  .go { margin: 22px 0 0; }
+  .species { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+  .species li { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; padding: 14px 16px 20px; transition: transform 0.25s, border-color 0.25s; }
+  .species li:hover { transform: translateY(-3px); border-color: var(--line-strong); }
+  .species img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; margin-bottom: 4px; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .species li:hover img { transform: scale(1.08); }
+  .species strong { font: 400 24px/1.1 var(--display); }
+  .species code { margin-top: 8px; font: 12px ui-monospace, 'SF Mono', Menlo, monospace; color: var(--glow); background: rgba(110, 243, 214, 0.1); border-radius: 999px; padding: 3px 10px; }
+  .species li[data-rarity='legendary'] { border-color: rgba(245, 210, 122, 0.45); }
+  .species .chip { margin-top: 6px; }
+  .rarity, .rules { padding: 0; margin: 0; list-style: none; display: grid; gap: 12px; }
+  .rarity li { color: var(--dim); font-size: 15px; display: flex; align-items: center; gap: 14px; }
+  .rarity .chip { min-width: 96px; text-align: center; }
+  .rules li { padding-left: 26px; position: relative; color: #c9d9f0; }
+  .rules li::before { content: ''; position: absolute; left: 4px; top: 0.62em; width: 7px; height: 7px; border-radius: 50%; background: var(--glow); box-shadow: 0 0 10px var(--glow); }
+</style>

@@ -1,0 +1,5 @@
+name: "dsh-ops"
+repo: T-Auto/dsh-ops
+category: tools
+description: "A toolkit for low-level operations in DSH, designed to reduce token usage and task execution time / DSH 底层操作工具插件，旨在减少 Token 消耗与任务耗时"
+added: 2026-11-12

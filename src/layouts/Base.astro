@@ -1,0 +1,170 @@
+---
+import '@fontsource/inter/latin-400.css';
+import '@fontsource/inter/latin-500.css';
+import '@fontsource/inter/latin-600.css';
+import '@fontsource/instrument-serif/latin-400.css';
+import '@fontsource/instrument-serif/latin-400-italic.css';
+import { dict, href, type Lang } from '../lib/i18n';
+import { SITE, REPO_URL } from '../lib/projects';
+
+interface Props {
+  lang: Lang;
+  /** Path in the default language, e.g. "/list". Used for canonical + language switch. */
+  path: string;
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  ocean?: boolean;
+}
+const { lang, path, title, description, ogImage = '/og/home.png', ocean = false } = Astro.props;
+const t = dict(lang);
+const pageTitle = title ? `${title} · dshsea` : t.siteTitle;
+const desc = description ?? t.siteDesc;
+const canonical = new URL(href(lang, path), SITE).href;
+const other: Lang = lang === 'en' ? 'zh' : 'en';
+---
+<!doctype html>
+<html lang={lang === 'zh' ? 'zh-CN' : 'en'}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={desc} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en" href={new URL(href('en', path), SITE).href} />
+    <link rel="alternate" hreflang="zh" href={new URL(href('zh', path), SITE).href} />
+    <link rel="alternate" hreflang="x-default" href={new URL(href('en', path), SITE).href} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#04102a" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="dshsea" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={desc} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL(ogImage, SITE).href} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={desc} />
+    <meta name="twitter:image" content={new URL(ogImage, SITE).href} />
+  </head>
+  <body class:list={{ ocean }}>
+    <header class="topbar">
+      <a class="logo" href={href(lang, '/')}>dsh<i>sea</i></a>
+      <slot name="bar" />
+      <nav>
+        <a href={href(lang, '/list')}>{t.navList}</a>
+        <a class="cta" href={href(lang, '/submit')}>{t.navSubmit}</a>
+        <a href={href(other, path)} hreflang={other}>{other === 'zh' ? '中文' : 'EN'}</a>
+        <a href={REPO_URL} rel="noopener" aria-label="GitHub">GitHub</a>
+      </nav>
+    </header>
+    <slot />
+    {
+      !ocean && (
+        <footer class="foot">
+          <p>{t.unofficial}</p>
+          <p>
+            <a href={href(lang, '/')}>{t.backToOcean}</a> · <a href={REPO_URL} rel="noopener">GitHub</a>
+          </p>
+        </footer>
+      )
+    }
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --ink: #020714;
+    --deep: #04102a;
+    --panel: rgba(9, 20, 46, 0.58);
+    --line: rgba(170, 205, 255, 0.14);
+    --line-strong: rgba(170, 205, 255, 0.28);
+    --text: #eaf2ff;
+    --dim: #93a8c6;
+    --glow: #6ef3d6;
+    --sky: #7db8ff;
+    --gold: #f5d27a;
+    --radius: 18px;
+    --display: 'Instrument Serif', 'Songti SC', 'Noto Serif CJK SC', Georgia, serif;
+    --body: 'Inter', ui-sans-serif, system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body {
+    margin: 0;
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+    background:
+      radial-gradient(1100px 620px at 78% -8%, rgba(60, 150, 220, 0.34), transparent 62%),
+      radial-gradient(900px 560px at 8% 4%, rgba(70, 60, 190, 0.26), transparent 60%),
+      linear-gradient(#071a3c, #04102a 38%, #020714);
+    background-attachment: fixed;
+  }
+  a { color: inherit; }
+  [hidden] { display: none !important; }
+  ::selection { background: rgba(110, 243, 214, 0.3); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  .topbar {
+    position: fixed; inset: 0 0 auto 0; z-index: 20;
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 22px;
+    background: linear-gradient(rgba(2, 7, 20, 0.6), rgba(2, 7, 20, 0));
+  }
+  .topbar .logo { font-family: var(--display); font-size: 26px; line-height: 1; letter-spacing: -0.01em; text-decoration: none; color: #fff; flex: none; }
+  .topbar .logo i { color: var(--glow); }
+  .topbar nav { margin-left: auto; display: flex; align-items: center; gap: 20px; font-size: 14px; font-weight: 500; flex: none; }
+  .topbar nav a { text-decoration: none; color: var(--text); opacity: 0.78; transition: opacity 0.2s; }
+  .topbar nav a:hover { opacity: 1; }
+  .topbar nav .cta {
+    opacity: 1; color: #03131f; font-weight: 600; padding: 7px 16px; border-radius: 999px;
+    background: linear-gradient(135deg, #8af7df, #6cc8ff);
+    box-shadow: 0 6px 22px rgba(110, 243, 214, 0.28);
+  }
+  @media (max-width: 640px) {
+    .topbar { gap: 10px; padding: 10px 14px; flex-wrap: wrap; }
+    .topbar nav { gap: 14px; font-size: 13px; }
+    .topbar nav a[aria-label='GitHub'] { display: none; }
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 var(--body);
+    padding: 12px 20px; border-radius: 999px; text-decoration: none; cursor: pointer; border: 0;
+    color: #03131f; background: linear-gradient(135deg, #8af7df, #6cc8ff);
+    box-shadow: 0 8px 28px rgba(110, 243, 214, 0.26);
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 12px 34px rgba(110, 243, 214, 0.36); }
+  .btn.alt { color: var(--text); background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
+  .btn.alt:hover { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+  .btn.ghost { color: var(--dim); background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .btn.ghost:hover { color: var(--text); }
+
+  .page { max-width: 1040px; margin: 0 auto; padding: 120px 24px 56px; }
+  .page h1 { font-family: var(--display); font-weight: 400; font-size: clamp(44px, 7vw, 76px); line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 16px; }
+  .page h1 em { color: var(--glow); }
+  .page h2 { font-family: var(--display); font-weight: 400; font-size: clamp(28px, 3.6vw, 38px); line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 12px; }
+  .page .lede { color: var(--dim); font-size: 18px; margin: 0 0 32px; max-width: 60ch; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .chip { display: inline-block; font-size: 12px; font-weight: 500; line-height: 1; padding: 6px 10px; border-radius: 999px; color: var(--dim); background: rgba(160, 200, 255, 0.1); }
+  .chip[data-rarity='rare'] { color: #9ad6ff; background: rgba(110, 190, 255, 0.14); }
+  .chip[data-rarity='epic'] { color: #dcb4ff; background: rgba(190, 130, 255, 0.16); }
+  .chip[data-rarity='legendary'] { color: var(--gold); background: rgba(245, 210, 122, 0.15); }
+  /* Creature renders are photographed at hue 200 and tinted per project. */
+  .creature { display: block; max-width: 100%; height: auto; filter: hue-rotate(var(--tint, 0deg)) drop-shadow(0 18px 30px rgba(0, 0, 0, 0.35)); }
+  .foot { max-width: 1040px; margin: 0 auto; padding: 28px 24px 56px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
+  .foot p { margin: 4px 0; }
+  .foot a { text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+  pre.code {
+    margin: 0; padding: 18px 20px; overflow-x: auto; background: rgba(2, 7, 20, 0.7); border: 1px solid var(--line); border-radius: 14px;
+    font: 13px/1.7 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; color: #cfe2ff;
+  }
+</style>

@@ -1,0 +1,5 @@
+name: "DS-Bot"
+repo: Fei2411/DS-Bot
+category: workflow
+description: "A team of long-lived bots for DeepSeek Harness, with main bots, bot-to-bot messages and group chats."
+added: 2026-11-12

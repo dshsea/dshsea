@@ -1,0 +1,5 @@
+name: "dsh-routing-suite"
+repo: yjh051108/dsh-routing-suite
+category: models
+description: "dsh-routing-suite — injector + router-standard kit: install the runtime injector first, then the task-aware reasoning-mode router preset (measured P1-P23)."
+added: 2026-11-12

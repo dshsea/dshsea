@@ -1,0 +1,5 @@
+name: "deepseek-harness-cli"
+repo: soolaugust/deepseek-harness-cli
+category: apps
+description: "Interactive terminal agent (fork of DeepSeek Harness): Claude Code-style REPL — full-screen UI, markdown rendering, session stats, permission cycling, custom OpenAI-compatible providers."
+added: 2026-11-12

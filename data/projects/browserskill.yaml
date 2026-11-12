@@ -1,0 +1,5 @@
+name: "BrowserSkill"
+repo: Tencent/BrowserSkill
+category: tools
+description: "Let AI agents use your real, logged-in browser without interrupting your work. CLI + extension for browser automation across any shell-capable AI agent."
+added: 2026-11-12

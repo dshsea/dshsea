@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import { creatureSrc } from '../lib/species';
+---
+<Base lang="en" path="/404" title="Lost at sea">
+  <main class="page" style="text-align:center">
+    <p><img class="creature" src={creatureSrc('jellyfish')} alt="" style="margin:0 auto;height:260px;opacity:.9" /></p>
+    <h1>Lost <em>at sea</em></h1>
+    <p class="lede" style="margin-inline:auto">Nothing lives at this address. 这片海域什么都没有。</p>
+    <a class="btn" href="/">Back to the surface</a>
+  </main>
+</Base>

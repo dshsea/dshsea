@@ -1,0 +1,5 @@
+name: "OpenViking"
+repo: volcengine/OpenViking
+category: memory
+description: "Self-evolving Context Database for AI Agents. Unify Agent Memory, Knowledge RAG and Skills."
+added: 2026-11-12

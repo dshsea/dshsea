@@ -1,0 +1,5 @@
+name: "MemOS"
+repo: MemTensor/MemOS
+category: memory
+description: "Self-evolving memory OS for LLM & AI Agents: ultra-persistent memory, hybrid-retrieval, and cross-task skill reuse, with 35.24% token savings and DeepSeek Harness support."
+added: 2026-11-12

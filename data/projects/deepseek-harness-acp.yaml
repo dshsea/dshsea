@@ -1,0 +1,5 @@
+name: "deepseek-harness-acp"
+repo: openma-ai/deepseek-harness-acp
+category: tools
+description: "ACP server implementation for DeepSeek harness. dsh-acp"
+added: 2026-11-12

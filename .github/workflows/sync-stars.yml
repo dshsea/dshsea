@@ -1,0 +1,38 @@
+name: Sync stars
+
+# Refreshes data/stars.json once a day. The commit triggers a Cloudflare rebuild,
+# so sizes, rarities and depths in the ocean stay current without any backend.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm sync-stars
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit if changed
+        run: |
+          if git diff --quiet data/stars.json; then
+            echo "No changes."
+            exit 0
+          fi
+          git config user.name "dshsea-bot"
+          git config user.email "bot@dshsea.com"
+          git commit -m "chore: sync stars" data/stars.json
+          git push
