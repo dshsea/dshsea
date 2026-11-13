@@ -29,6 +29,14 @@ export function rarityFor(stars: number): Rarity {
   return 'common';
 }
 
+/** What a creature becomes next, and how many more stars that takes. Null once it is a whale. */
+export function evolution(stars: number): { next: Rarity; need: number } | null {
+  for (const [at, next] of [[20, 'rare'], [1000, 'epic'], [100000, 'legendary']] as const) {
+    if (stars < at) return { next, need: at - stars };
+  }
+  return null;
+}
+
 export function hashKey(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {

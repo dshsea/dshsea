@@ -33,6 +33,11 @@ const payload = {
     dexUnknown: t.dexUnknown, bestEmpty: t.bestEmpty, achToast: t.achToast, ach: t.ach,
     trackBelow: t.trackBelow, trackAbove: t.trackAbove, trackNear: t.trackNear,
     photoTweetAt: t.photoTweetAt, photoTweet: t.photoTweet,
+    evolve: t.evolve('{n}', '{rarity}'), evolveMax: t.evolveMax,
+    bounty: t.bounty, bountyIn: t.bountyIn, bountyDone: t.bountyDone, clueZone: t.clueZone, clueName: t.clueName,
+    bountyFound: t.bountyFound, bountyStreak: t.bountyStreak, bountyToast: t.bountyToast, bountyTweet: t.bountyTweet,
+    bottleSent: t.bottleSent, bottleFound: t.bottleFound, bottleReported: t.bottleReported, bottleErr: t.bottleErr,
+    boardYou: t.boardYou, boardEmpty: t.boardEmpty, boardErr: t.boardErr, logSeen: t.logSeen,
     shareTweet: t.shareTweet('{name}', '{species}', '{depth}'),
   },
 };
@@ -94,7 +99,46 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
       {t.photo}
     </button>
   </div>
+  <button id="bottle-btn" class="side" type="button" title={t.bottle} hidden>
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M6.5 1.5h3v3l1.5 2v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7l1.5-2zM5 9h6"/></svg>
+    {t.bottle}
+  </button>
+  <button id="bounty" type="button" hidden><i></i><span>{t.bounty}</span></button>
   <button id="tracker" type="button" title={t.trackHint} hidden><i></i><span></span></button>
+
+  <section id="bounty-sheet" class="sheet" hidden>
+    <button class="x" data-close aria-label={t.close}>×</button>
+    <h2>{t.bountyTitle}</h2>
+    <p class="sub">{t.bountySub}</p>
+    <div class="wanted">
+      <img id="bounty-img" class="creature" alt="" />
+      <ul id="bounty-clues"></ul>
+    </div>
+    <p id="bounty-result" class="result" hidden></p>
+    <div class="actions">
+      <button id="bounty-go" class="btn" type="button">{t.bountyGo}</button>
+      <a id="bounty-share" class="btn alt" target="_blank" rel="noopener" hidden>{t.share}</a>
+    </div>
+  </section>
+
+  <section id="bottle-write" class="sheet" hidden>
+    <button class="x" data-close aria-label={t.close}>×</button>
+    <h2>{t.bottleTitle}</h2>
+    <p class="sub">{t.bottleSub}</p>
+    <form id="bottle-form">
+      <textarea name="text" maxlength="140" rows="3" required placeholder={t.bottlePlaceholder}></textarea>
+      <input name="name" maxlength="20" placeholder={t.bottleName} autocomplete="nickname" />
+      <p id="bottle-error" class="error" hidden></p>
+      <button class="btn">{t.bottleSend}</button>
+    </form>
+  </section>
+
+  <section id="bottle-read" class="sheet" hidden>
+    <button class="x" data-close aria-label={t.close}>×</button>
+    <p class="sub" id="bottle-where"></p>
+    <blockquote id="bottle-text"></blockquote>
+    <p class="by"><span id="bottle-by"></span> <button id="bottle-report" type="button">{t.bottleReport}</button></p>
+  </section>
   <button class="logbook" id="logbook" type="button" title={t.dexTitle}>
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M8 4c-1.4-1-3.3-1.3-5.5-1v9.5c2.2-.3 4.1 0 5.5 1 1.4-1 3.3-1.3 5.5-1V3c-2.2-.3-4.1 0-5.5 1zM8 4v9.5"/></svg>
     <span><b id="log-seen">0</b> / {fmt(count)} {t.logSeen}</span>
@@ -111,6 +155,14 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
     <ul id="dex-best"></ul>
     <h3>{t.achTitle} <small id="dex-ach-count"></small></h3>
     <ul id="dex-ach"></ul>
+    <div id="board" hidden>
+      <h3>{t.boardTitle} <small id="board-you"></small></h3>
+      <form id="board-join" hidden>
+        <input name="name" minlength="2" maxlength="20" required placeholder={t.boardName} autocomplete="nickname" />
+        <button class="btn">{t.boardJoin}</button>
+      </form>
+      <ol id="board-list"></ol>
+    </div>
   </section>
 
   <section id="shot" class="sheet" hidden>
@@ -140,6 +192,7 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
       </div>
     </div>
     <p id="card-desc"></p>
+    <p id="card-evolve"></p>
     <dl>
       <div><dt>{t.depth}</dt><dd id="card-depth"></dd></div>
       <div><dt>{t.stars}</dt><dd id="card-stars"></dd></div>
@@ -305,6 +358,42 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   @keyframes blip { 100% { box-shadow: 0 0 0 12px rgba(245, 210, 122, 0); } }
   :global(body:not(.dived)) #tracker { display: none; }
 
+  #bounty, #bottle-btn {
+    position: fixed; right: 24px; z-index: 11; display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+    font: 500 13px var(--body); color: var(--glow); background: rgba(8, 18, 42, 0.55); border: 1px solid rgba(110, 243, 214, 0.4); border-radius: 999px; padding: 10px 16px;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  #bounty { top: calc(50% - 72px); }
+  #bottle-btn { top: calc(50% + 30px); color: var(--text); border-color: var(--line-strong); }
+  #bounty:hover, #bottle-btn:hover { background: rgba(20, 44, 90, 0.7); }
+  #bounty i { width: 8px; height: 8px; border-radius: 50%; background: var(--glow); }
+  :global(#bounty.hot) { color: #03131f; background: var(--glow); }
+  :global(#bounty.hot) i { background: #03131f; }
+  :global(body:not(.dived)) #bounty, :global(body:not(.dived)) #bottle-btn { display: none; }
+  .wanted { display: flex; align-items: center; gap: 22px; margin-bottom: 18px; }
+  .wanted img { width: 190px; flex: none; }
+  :global(#bounty-sheet:not(.found)) .wanted img { filter: brightness(0) invert(0.4); opacity: 0.6; }
+  #bounty-clues { display: grid; gap: 8px; font-size: 15px; }
+  #bounty-clues :global(li)::before { content: '· '; color: var(--glow); }
+  .result { font-family: var(--display); font-size: 30px; color: var(--gold); margin: 0 0 16px; }
+  #bottle-form { display: grid; gap: 12px; }
+  #bottle-form textarea, #bottle-form input, #board-join input {
+    font: 15px var(--body); color: var(--text); background: rgba(2, 7, 20, 0.6); border: 1px solid var(--line-strong); border-radius: 14px; padding: 12px 14px; outline: none; resize: none; width: 100%;
+  }
+  #bottle-form textarea:focus, #bottle-form input:focus, #board-join input:focus { border-color: var(--glow); }
+  #bottle-form .btn { justify-self: start; }
+  .error { color: #ff9c9c; font-size: 14px; margin: 0; }
+  #bottle-write, #bottle-read, #bounty-sheet { width: min(520px, calc(100vw - 24px)); }
+  #bottle-text { margin: 0 0 18px; font-family: var(--display); font-size: 30px; line-height: 1.25; overflow-wrap: anywhere; }
+  #bottle-read .by { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-size: 13px; color: var(--dim); }
+  #bottle-report { background: none; border: 0; padding: 0; color: var(--dim); font: inherit; text-decoration: underline; cursor: pointer; }
+  #board-join { display: flex; gap: 10px; margin-bottom: 12px; }
+  #board-list { margin: 0; padding: 0; list-style: none; counter-reset: rank; display: grid; gap: 4px; font-size: 14px; }
+  #board-list :global(li) { counter-increment: rank; display: grid; grid-template-columns: 34px 1fr auto auto; gap: 14px; padding: 7px 10px; border-radius: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  #board-list :global(li)::before { content: counter(rank); color: var(--dim); }
+  #board-list :global(li b) { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #board-list :global(li:nth-child(-n + 3))::before { color: var(--gold); font-weight: 700; }
+  #board-list :global(li.me) { background: rgba(110, 243, 214, 0.1); }
   .sheet {
     position: fixed; z-index: 40; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 24px)); max-height: calc(100dvh - 48px); overflow: auto;
     background: rgba(8, 18, 42, 0.86); border: 1px solid var(--line-strong); border-radius: 24px; padding: 28px;
@@ -353,6 +442,9 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
     .helm { left: auto; right: 10px; bottom: 12px; transform: none; }
     .helm button { font-size: 12px; padding: 10px 13px; }
     .helm #random, .helm #photo { font-size: 0; gap: 0; padding: 10px; }
+    #bounty { right: 10px; top: 190px; font-size: 12px; padding: 8px 12px; }
+    #bottle-btn { right: 10px; top: 230px; font-size: 0; gap: 0; padding: 9px; }
+    .wanted img { width: 110px; }
     #tracker { right: 10px; top: 150px; transform: none; font-size: 12px; padding: 8px 12px; }
     .logbook svg { display: none; }
     .sheet { padding: 20px; }
@@ -390,7 +482,8 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   #card-img { width: 116px; height: 88px; object-fit: contain; flex: none; }
   #card h2 { font-family: var(--display); font-weight: 400; font-size: 28px; line-height: 1.1; letter-spacing: -0.01em; margin: 8px 0 0; overflow-wrap: anywhere; }
   #card-kind { color: var(--glow); background: rgba(110, 243, 214, 0.12); }
-  #card-desc { font-size: 14px; line-height: 1.6; color: #c9d9f0; margin: 16px 0; max-height: 8em; overflow: auto; }
+  #card-desc { font-size: 14px; line-height: 1.6; color: #c9d9f0; margin: 16px 0 8px; max-height: 8em; overflow: auto; }
+  #card-evolve { font-size: 12px; color: var(--gold); margin: 0 0 16px; }
   #card dl { display: flex; gap: 26px; margin: 0 0 20px; padding-top: 16px; border-top: 1px solid var(--line); }
   #card dt { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 2px; }
   #card dd { margin: 0; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }

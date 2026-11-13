@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { dict, href, type Lang } from '../lib/i18n';
-import { fmt, SITE, type Project } from '../lib/projects';
+import { fmt, SITE, evolveText, type Project } from '../lib/projects';
 import { creatureSrc, tintStyle, zoneFor, fmtDepth } from '../lib/species';
 
 interface Props { lang: Lang; project: Project }
@@ -34,6 +34,7 @@ const badge = `[![${p.name} on dshsea](${SITE}/badge/${p.slug}.svg)](${SITE}/p/$
         <h1>{p.name}</h1>
         <p class="lives">{t.livesAt(fmtDepth(p.depth))} · {t.zones[zoneFor(p.depth)]}</p>
         <p class="desc">{desc}</p>
+        <p class="evolve">{evolveText(p.stars, lang)}</p>
         <dl>
           <div><dt>{t.stars}</dt><dd>★ {fmt(p.stars)}</dd></div>
           <div><dt>{t.category}</dt><dd>{(t.categoryNames as any)[p.category]}</dd></div>
@@ -105,7 +106,8 @@ const badge = `[![${p.name} on dshsea](${SITE}/badge/${p.slug}.svg)](${SITE}/p/$
   .info { min-width: 0; }
   .info h1 { margin: 16px 0 10px; overflow-wrap: anywhere; font-size: clamp(40px, 5.4vw, 68px); }
   .lives { margin: 0 0 18px; color: var(--glow); font-size: 15px; }
-  .desc { margin: 0 0 24px; color: #c9d9f0; font-size: 17px; overflow-wrap: anywhere; }
+  .desc { margin: 0 0 14px; color: #c9d9f0; font-size: 17px; overflow-wrap: anywhere; }
+  .evolve { margin: 0 0 24px; font-size: 14px; color: var(--gold); }
   dl { display: flex; flex-wrap: wrap; gap: 30px; margin: 0 0 28px; padding-top: 20px; border-top: 1px solid var(--line); }
   dt { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 2px; }
   dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }

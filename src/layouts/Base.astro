@@ -62,6 +62,7 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
       <a class="logo" href={href(lang, '/')}>dsh<i>sea</i></a>
       <slot name="bar" />
       <nav>
+        <a href="/u">{t.navMe}</a>
         <a href={href(lang, '/list')}>{t.navList}</a>
         <a class="cta" href={href(lang, '/submit')}>{t.navSubmit}</a>
         <a href={href(other, single ? '/' : path)} hreflang={other}>{other === 'zh' ? '中文' : 'EN'}</a>
@@ -72,7 +73,6 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
     {
       !ocean && (
         <footer class="foot">
-          <p>{t.unofficial}</p>
           <p>
             <a href={href(lang, '/')}>{t.backToOcean}</a> · <a href={href(lang, '/list')}>{t.navList}</a> · <a href="/all/1">All plugins</a> · <a href={REPO_URL} rel="noopener">GitHub</a>
           </p>

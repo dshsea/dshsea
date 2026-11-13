@@ -5,7 +5,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { SPECIES_IDS, SPECIES_RARITY, creatureSrc, tintDeg, zoneFor, traits, depthOf, fmtDepth, DEPTH_START, DEPTH_STEP, type SpeciesId } from '../lib/species';
+import { SPECIES_IDS, SPECIES_RARITY, creatureSrc, tintDeg, zoneFor, traits, depthOf, fmtDepth, evolution, hashKey, DEPTH_START, DEPTH_STEP, type SpeciesId } from '../lib/species';
 import { SPECIES, creatureMaterial, speciesGeometry, schoolFishGeometry } from './creatures3d';
 import {
   TRAIL, clamp, smooth, rand, BASIC_VERT, WATER_FRAG, SKY_FRAG, RAY_FRAG, PLANKTON_VERT, PLANKTON_FRAG,
@@ -181,8 +181,14 @@ export async function initOcean3D() {
 
   // ----- the logbook: what this visitor has discovered, kept in localStorage -----
   type Find = [name: string, stars: number, species: SpeciesId, hue: number, path: string];
-  type Log = { seen: Record<string, 1>; species: Record<string, number>; rarity: Record<string, 1>; best: Find[]; ach: Record<string, 1>; deepest: number };
-  let log: Log = { seen: {}, species: {}, rarity: {}, best: [], ach: {}, deepest: 0 };
+  type Log = {
+    seen: Record<string, 1>; species: Record<string, number>; rarity: Record<string, 1>; best: Find[]; ach: Record<string, 1>; deepest: number;
+    /** Daily bounty: the day it belongs to, when the hunt began, how long it took (0 = not caught), and the streak. */
+    bounty: { day: string; start: number; ms: number; streak: number; last: string };
+    /** Leaderboard identity: a random id kept in this browser, and the chosen name. */
+    board: { id: string; name: string };
+  };
+  let log: Log = { seen: {}, species: {}, rarity: {}, best: [], ach: {}, deepest: 0, bounty: { day: '', start: 0, ms: 0, streak: 0, last: '' }, board: { id: '', name: '' } };
   try {
     log = { ...log, ...JSON.parse(localStorage.getItem(LOG_KEY) ?? '{}') };
   } catch {
@@ -289,6 +295,7 @@ export async function initOcean3D() {
       toast(t.newSpecies.replace('{species}', t.speciesNames[c.species]).replace('{rarity}', t.rarityNames[c.rarity]));
       sound.blip();
     }
+    if (c.index === bountyIndex && !log.bounty.ms) bountyCaught(c);
     // Keep the six biggest finds for the field guide.
     if (c.stars > 0 && (log.best.length < 6 || c.stars > log.best[log.best.length - 1][1])) {
       log.best = [...log.best, [c.name, c.stars, c.species, c.hue, pageOf(c)] as Find].sort((x, y) => y[1] - x[1]).slice(0, 6);
@@ -301,6 +308,7 @@ export async function initOcean3D() {
     checkAchievements();
     renderLog();
     if (!$('dex').hidden) renderDex();
+    submitScore();
     try {
       localStorage.setItem(LOG_KEY, JSON.stringify(log));
     } catch {
@@ -309,8 +317,13 @@ export async function initOcean3D() {
   }, 1000);
   $('logbook').addEventListener('click', () => {
     renderDex();
-    $('dex').hidden = false;
+    void renderBoard();
+    openSheet('dex');
   });
+  /** Only one sheet at a time. */
+  function openSheet(id: string) {
+    for (const el of document.querySelectorAll<HTMLElement>('.sheet')) el.hidden = el.id !== id;
+  }
   for (const x of document.querySelectorAll<HTMLElement>('[data-close]')) x.addEventListener('click', () => (x.closest<HTMLElement>('.sheet')!.hidden = true));
 
   // ----- creatures: streamed in around the diver, disposed when left behind -----
@@ -629,6 +642,7 @@ export async function initOcean3D() {
     depthTarget = camDepth = lastDepth = clamp(depth, START_DEPTH, MAX_DEPTH);
     fling = 0;
     for (const c of [...live.values()]) despawn(c);
+    for (const id of [...liveBottles.keys()]) dropBottle(id);
     flash(depth > 0);
   }
 
@@ -856,13 +870,20 @@ export async function initOcean3D() {
     chestScreen = nearBed ? toScreen(chestCentre, 1.7) : null;
     if (nearBed) chestHalo.material.opacity = 0.34 + Math.sin(time * 2) * 0.08;
 
+    for (const lb of liveBottles.values()) {
+      lb.group.visible = !above;
+      lb.group.position.y = lb.y + Math.sin(time * 0.8 + lb.phase) * 0.35;
+      (lb.sprite.material as THREE.SpriteMaterial).rotation = Math.sin(time * 0.6 + lb.phase) * 0.35 + 0.3;
+      lb.screen = above ? null : toScreen(lb.group.position, 0.9);
+    }
+
     if (pointerX >= 0 && pointerIsMouse && !dragging) {
       const h = pick(pointerX, pointerY);
       if (h !== hovered) {
         hovered = h;
         if (h && h !== 'ghost' && h !== 'chest') discover(h);
-        canvas.style.cursor = h ? 'pointer' : 'grab';
       }
+      canvas.style.cursor = h || pickBottle(pointerX, pointerY) ? 'pointer' : 'grab';
     }
 
     // The tracker points at the nearest giant this visitor has not identified yet.
@@ -877,6 +898,8 @@ export async function initOcean3D() {
           best = index;
         }
       }
+      updateBountyPill();
+      syncBottles();
       trackTarget = best;
       const el = $('tracker');
       el.hidden = best < 0 || above;
@@ -904,6 +927,273 @@ export async function initOcean3D() {
     }
     requestAnimationFrame(frame);
   }
+
+  // ----- daily bounty: one creature, the same for everyone, picked by the date -----
+  const today = new Date().toISOString().slice(0, 10);
+  const bountyIndex = count ? hashKey(`bounty:${today}`) % count : -1;
+  const bountyDepth = depthOf(Math.max(bountyIndex, 0));
+  // The clue is a 1 km band (about 30 creatures); where the target sits inside it changes daily.
+  const bandLo = Math.max(0, bountyDepth - 100 - (hashKey(`band:${today}`) % 800));
+  const bandHi = bandLo + 1000;
+  if (log.bounty.day !== today) log.bounty = { ...log.bounty, day: today, start: 0, ms: 0 };
+  const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+  let bountyRow: Row | null = null;
+  function renderBounty() {
+    if (!bountyRow) return;
+    const repo = bountyRow[0];
+    const tr = traits(repo.toLowerCase().replace(/\/$/, ''), bountyRow[1], bountyRow[5] || null);
+    const name = bountyRow[4] ?? repo.split('/').pop()!;
+    const found = log.bounty.ms > 0;
+    const img = $<HTMLImageElement>('bounty-img');
+    img.src = creatureSrc(tr.species);
+    img.style.setProperty('--tint', `${tintDeg(tr.hue)}deg`);
+    $('bounty-sheet').classList.toggle('found', found);
+    const clues = [
+      `${t.speciesNames[tr.species]} · ${t.rarityNames[tr.rarity]} · ★ ${fmt(bountyRow[1])}`,
+      t.clueZone.replace('{a}', fmtDepth(bandLo)).replace('{b}', fmtDepth(bandHi)),
+      found ? name : t.clueName.replace('{c}', name[0].toUpperCase()).replace('{n}', String(name.length)),
+    ];
+    $('bounty-clues').replaceChildren(...clues.map((c) => Object.assign(document.createElement('li'), { textContent: c })));
+    const result = $('bounty-result');
+    result.hidden = !found;
+    result.textContent = `${t.bountyFound.replace('{t}', clock(log.bounty.ms))} · ${t.bountyStreak.replace('{n}', String(log.bounty.streak))}`;
+    $('bounty-go').hidden = found;
+    const share = $('bounty-share') as HTMLAnchorElement;
+    share.hidden = !found;
+    share.href = `https://x.com/intent/post?text=${encodeURIComponent(t.bountyTweet.replace('{t}', clock(log.bounty.ms)).replace('{n}', String(log.bounty.streak)))}&url=${encodeURIComponent(location.origin + (payload.base || '/'))}`;
+  }
+  function bountyCaught(c: Creature) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    log.bounty.ms = Math.max(1000, Date.now() - (log.bounty.start || Date.now()));
+    log.bounty.streak = log.bounty.last === yesterday ? log.bounty.streak + 1 : 1;
+    log.bounty.last = today;
+    logDirty = true;
+    toast(t.bountyToast.replace('{name}', c.name));
+    renderBounty();
+    setTimeout(() => openSheet('bounty-sheet'), 1200);
+  }
+  function updateBountyPill() {
+    const el = $('bounty');
+    if (!bountyRow) return;
+    el.hidden = false;
+    const inZone = !log.bounty.ms && camDepth >= bandLo && camDepth <= bandHi;
+    el.classList.toggle('hot', inZone);
+    el.lastElementChild!.textContent = log.bounty.ms ? t.bountyDone : inZone ? t.bountyIn : t.bounty;
+  }
+  if (bountyIndex >= 0) {
+    fetch(`/data/c/${Math.floor(bountyIndex / CHUNK)}.json`)
+      .then((r) => r.json())
+      .then((rows: Row[]) => (bountyRow = rows[bountyIndex % CHUNK]))
+      .catch(() => {});
+  }
+  $('bounty').addEventListener('click', () => {
+    if (!log.bounty.start) {
+      log.bounty.start = Date.now(); // the clock starts when the clues are first read
+      logDirty = true;
+    }
+    renderBounty();
+    openSheet('bounty-sheet');
+  });
+  $('bounty-go').addEventListener('click', () => {
+    $('bounty-sheet').hidden = true;
+    teleport(bandLo);
+  });
+
+  // ----- bottles and leaderboard: the two things that talk to the server (worker/index.js) -----
+  type Bottle = { id: number; depth: number; text: string; name: string; created: number };
+  type LiveBottle = { b: Bottle; group: THREE.Group; sprite: THREE.Sprite; y: number; phase: number; screen: Screen };
+  const BOTTLE_BAND = 20000;
+  const bottleBands = new Map<number, Bottle[] | null>();
+  const liveBottles = new Map<number, LiveBottle>();
+  let apiOk = true; // turns false where there is no server (astro dev), and the features hide
+  let bottleTex: THREE.Texture | null = null;
+  function bottleTexture() {
+    const c = document.createElement('canvas');
+    c.width = 96;
+    c.height = 192;
+    const g = c.getContext('2d')!;
+    g.lineJoin = 'round';
+    g.beginPath(); // body, shoulders, neck
+    g.moveTo(26, 178); g.lineTo(70, 178); g.quadraticCurveTo(80, 178, 80, 166); g.lineTo(80, 92);
+    g.quadraticCurveTo(80, 70, 60, 58); g.lineTo(60, 26); g.lineTo(36, 26); g.lineTo(36, 58);
+    g.quadraticCurveTo(16, 70, 16, 92); g.lineTo(16, 166); g.quadraticCurveTo(16, 178, 26, 178);
+    g.closePath();
+    g.fillStyle = 'rgba(150,255,225,0.28)';
+    g.fill();
+    g.lineWidth = 5;
+    g.strokeStyle = 'rgba(215,255,244,0.95)';
+    g.stroke();
+    g.fillStyle = '#c99a5b'; // cork
+    g.fillRect(38, 8, 20, 20);
+    g.fillStyle = '#fff3d0'; // the note
+    g.save();
+    g.translate(48, 126);
+    g.rotate(-0.25);
+    g.fillRect(-13, -30, 26, 60);
+    g.restore();
+    return new THREE.CanvasTexture(c);
+  }
+  function wantBand(n: number) {
+    if (n < 0 || bottleBands.has(n) || !apiOk) return;
+    bottleBands.set(n, null);
+    fetch(`/api/bottles?band=${n}`)
+      .then((r) => (r.ok && r.headers.get('content-type')?.includes('json') ? r.json() : Promise.reject()))
+      .then((list: Bottle[]) => {
+        bottleBands.set(n, list);
+        $('bottle-btn').hidden = false;
+      })
+      .catch(() => {
+        apiOk = false;
+        $('bottle-btn').hidden = true;
+      });
+  }
+  function dropBottle(id: number) {
+    const lb = liveBottles.get(id);
+    if (!lb) return;
+    scene.remove(lb.group);
+    lb.sprite.material.dispose();
+    liveBottles.delete(id);
+  }
+  function syncBottles() {
+    const band = Math.floor(Math.max(camDepth, 0) / BOTTLE_BAND);
+    for (const n of [band - 1, band, band + 1]) {
+      wantBand(n);
+      for (const b of bottleBands.get(n) ?? []) {
+        const far = Math.abs(b.depth - camDepth);
+        if (far < 800 && !liveBottles.has(b.id)) {
+          bottleTex ??= bottleTexture();
+          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: bottleTex, color: 0xa8a8a8, transparent: true, depthWrite: false, fog: false }));
+          sprite.scale.set(0.75, 1.5, 1);
+          const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex, color: 0x9affe0, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false, opacity: 0.35 }));
+          halo.scale.setScalar(3.4);
+          halo.renderOrder = -1;
+          const group = new THREE.Group();
+          group.add(halo, sprite);
+          const h = hashKey(`bottle:${b.id}`);
+          // Always inside the default view: a bottle nobody can see is no fun.
+          const az = (((h % 1000) / 1000) * 2 - 1) * 0.42;
+          const r = 6 + ((h >>> 10) % 300) / 100;
+          const y = -b.depth * K;
+          group.position.set(Math.sin(az) * r, y, -Math.cos(az) * r);
+          scene.add(group);
+          liveBottles.set(b.id, { b, group, sprite, y, phase: (h % 628) / 100, screen: null });
+        } else if (far > 1100) dropBottle(b.id);
+      }
+    }
+  }
+  function pickBottle(x: number, y: number): LiveBottle | null {
+    for (const lb of liveBottles.values()) {
+      if (lb.screen && lb.screen.d < 45 && Math.hypot(x - lb.screen.x, y - lb.screen.y) < Math.max(lb.screen.r, 30)) return lb;
+    }
+    return null;
+  }
+  let reading: Bottle | null = null;
+  function readBottle(lb: LiveBottle) {
+    reading = lb.b;
+    $('bottle-where').textContent = t.bottleFound.replace('{d}', fmtDepth(lb.b.depth));
+    $('bottle-text').textContent = lb.b.text;
+    $('bottle-by').textContent = `— ${lb.b.name}, ${new Date(lb.b.created * 1000).toLocaleDateString()}`;
+    openSheet('bottle-read');
+    sound.blip();
+  }
+  const post = (path: string, data: unknown) =>
+    fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  $('bottle-report').addEventListener('click', () => {
+    if (!reading) return;
+    void post('/api/bottles/report', { id: reading.id });
+    dropBottle(reading.id);
+    for (const list of bottleBands.values()) {
+      const i = list?.findIndex((b) => b.id === reading!.id) ?? -1;
+      if (i >= 0) list!.splice(i, 1);
+    }
+    $('bottle-read').hidden = true;
+    toast(t.bottleReported);
+  });
+  $('bottle-btn').addEventListener('click', () => {
+    $('bottle-error').hidden = true;
+    openSheet('bottle-write');
+  });
+  const bottleForm = $<HTMLFormElement>('bottle-form');
+  (bottleForm.elements.namedItem('name') as HTMLInputElement).value = log.board.name;
+  bottleForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = new FormData(bottleForm);
+    const depth = Math.round(Math.max(camDepth, 0));
+    let error = 'other';
+    try {
+      const res = await post('/api/bottles', { depth, text: data.get('text'), name: data.get('name') });
+      const body = await res.json();
+      if (res.ok) {
+        const band = Math.floor(depth / BOTTLE_BAND);
+        bottleBands.set(band, [body as Bottle, ...(bottleBands.get(band) ?? [])]);
+        (bottleForm.elements.namedItem('text') as HTMLTextAreaElement).value = '';
+        $('bottle-write').hidden = true;
+        toast(t.bottleSent.replace('{d}', fmtDepth(depth)));
+        return;
+      }
+      error = body.error in t.bottleErr ? body.error : 'other';
+    } catch {
+      /* network error: generic message */
+    }
+    const el = $('bottle-error');
+    el.textContent = t.bottleErr[error];
+    el.hidden = false;
+  });
+
+  type Score = { name: string; seen: number; species: number; deepest: number };
+  let lastScoreAt = 0;
+  const myScore = () => ({ id: log.board.id, name: log.board.name, seen: seenCount(), species: speciesCount(), deepest: Math.round(log.deepest), ach: Object.keys(log.ach).length });
+  function submitScore(force = false) {
+    if (!apiOk || !log.board.id || (!force && Date.now() - lastScoreAt < 45000)) return Promise.resolve(null);
+    lastScoreAt = Date.now();
+    return post('/api/score', myScore()).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  }
+  async function renderBoard() {
+    if (!apiOk) return;
+    const rank = await submitScore(true);
+    let rows: Score[];
+    try {
+      const res = await fetch('/api/board');
+      if (!res.ok || !res.headers.get('content-type')?.includes('json')) throw new Error();
+      rows = await res.json();
+    } catch {
+      apiOk = false;
+      return;
+    }
+    $('board').hidden = false;
+    $('board-join').hidden = !!log.board.id;
+    $('board-you').textContent = rank ? t.boardYou.replace('{n}', String(rank.rank)) : '';
+    const list = $('board-list');
+    list.replaceChildren(...rows.map((r) => {
+      const li = document.createElement('li');
+      li.classList.toggle('me', !!log.board.id && r.name === log.board.name && r.seen === seenCount());
+      const name = document.createElement('b');
+      name.textContent = r.name;
+      const seen = document.createElement('span');
+      seen.textContent = `${fmt(r.seen)} ${t.logSeen} · ${r.species}/${SPECIES_IDS.length}`;
+      const deep = document.createElement('span');
+      deep.textContent = fmtDepth(r.deepest);
+      li.append(name, seen, deep);
+      return li;
+    }));
+    if (!rows.length) list.textContent = t.boardEmpty;
+  }
+  $<HTMLFormElement>('board-join').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const input = form.elements.namedItem('name') as HTMLInputElement;
+    log.board = { id: crypto.randomUUID(), name: input.value.trim() };
+    const ok = await submitScore(true);
+    if (!ok) {
+      log.board = { id: '', name: '' };
+      input.setCustomValidity(t.boardErr);
+      input.reportValidity();
+      input.setCustomValidity('');
+      return;
+    }
+    logDirty = true;
+    void renderBoard();
+  });
 
   // ----- photo mode: the current view as a captioned picture, ready to post -----
   function takePhoto() {
@@ -953,7 +1243,7 @@ export async function initOcean3D() {
       : t.photoTweet.replace('{depth}', depthText);
     ($('shot-post') as HTMLAnchorElement).href =
       `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.origin + (subject ? pageOf(subject) : payload.base || '/'))}`;
-    $('shot').hidden = false;
+    openSheet('shot');
     flash(false);
     if (!log.ach.photo) {
       log.ach.photo = 1;
@@ -1014,11 +1304,11 @@ export async function initOcean3D() {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeCard();
-      for (const id of ['egg', 'dex', 'shot']) $(id).hidden = true;
+      for (const id of ['egg', 'dex', 'shot', 'bounty-sheet', 'bottle-write', 'bottle-read']) $(id).hidden = true;
       return;
     }
-    if (e.key === 'p' && document.activeElement !== sonar) wantPhoto = true;
-    if (document.activeElement === sonar) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (e.key === 'p') wantPhoto = true;
     if (e.key === '/') {
       e.preventDefault();
       sonar.focus();
@@ -1092,6 +1382,8 @@ export async function initOcean3D() {
   });
   canvas.addEventListener('click', (e) => {
     if (dragMoved > 6) return; // that was a look-around drag or a swipe, not a click
+    const bottle = pickBottle(e.clientX, e.clientY);
+    if (bottle) return readBottle(bottle);
     const hit = pick(e.clientX, e.clientY);
     if (hit === 'ghost') location.href = `${payload.base}/submit`;
     else if (hit === 'chest') $('egg').hidden = false;
@@ -1117,6 +1409,8 @@ export async function initOcean3D() {
     card.dataset.rarity = c.rarity;
     card.dataset.wild = String(!c.slug);
     $('card-desc').textContent = c.desc || t.noDesc;
+    const ev = evolution(c.stars);
+    $('card-evolve').textContent = ev ? t.evolve.replace('{n}', fmt(ev.need)).replace('{rarity}', t.rarityNames[ev.next].toLowerCase()) : t.evolveMax;
     $('card-depth').textContent = fmtDepth(c.depth);
     $('card-stars').textContent = `★ ${fmt(c.stars)}`;
     $('card-status').textContent = c.slug ? t.claimed : t.wild;

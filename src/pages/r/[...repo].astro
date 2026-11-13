@@ -11,7 +11,7 @@ export function getStaticPaths() {
     return getCatalog().entries.flatMap((e, i) => (e.repo && !e.slug ? [{ params: { repo: e.key }, props: { page: repoPage(i)! } }] : []));
   }
   const token = (k: string) => `__${k}__`;
-  const keys = ['KEY', 'REPO', 'NAME', 'OWNER', 'DESC', 'META', 'STARS', 'CREATED', 'DEPTH', 'ZONE', 'SPECIES', 'SPECIES_NAME', 'RARITY', 'RARITY_NAME', 'TINT', 'HUE'];
+  const keys = ['KEY', 'REPO', 'NAME', 'OWNER', 'OWNER_KEY', 'DESC', 'META', 'STARS', 'CREATED', 'DEPTH', 'ZONE', 'SPECIES', 'SPECIES_NAME', 'RARITY', 'RARITY_NAME', 'TINT', 'HUE', 'EVOLVE'];
   const page = { ...Object.fromEntries(keys.map((k) => [k, token(k)])), N: [] } as unknown as RepoPage;
   return [{ params: { repo: '_template' }, props: { page, template: true } }];
 }
@@ -41,8 +41,9 @@ const badge = `[![${p.NAME} on dshsea](${SITE}/badge.svg)](${SITE}/r/${p.KEY})`;
       <div class="info">
         <span class="chip" data-rarity={p.RARITY}>{p.SPECIES_NAME} · {p.RARITY_NAME}</span>
         <h1>{p.NAME}</h1>
-        <p class="lives">by <a href={`https://github.com/${p.OWNER}`} rel="noopener">{p.OWNER}</a> · lives {p.DEPTH} down · {p.ZONE}</p>
+        <p class="lives">by <a href={`/u/${p.OWNER_KEY}`}>{p.OWNER}</a> · lives {p.DEPTH} down · {p.ZONE}</p>
         <p class="desc">{p.DESC}</p>
+        <p class="evolve">{p.EVOLVE}</p>
         <dl>
           <div><dt>Stars</dt><dd>★ {p.STARS}</dd></div>
           <div><dt>Created</dt><dd>{p.CREATED}</dd></div>
@@ -94,7 +95,8 @@ const badge = `[![${p.NAME} on dshsea](${SITE}/badge.svg)](${SITE}/r/${p.KEY})`;
   .info h1 { margin: 16px 0 10px; overflow-wrap: anywhere; font-size: clamp(38px, 5vw, 62px); }
   .lives { margin: 0 0 18px; color: var(--glow); font-size: 15px; }
   .lives a { text-underline-offset: 3px; }
-  .desc { margin: 0 0 24px; color: #c9d9f0; font-size: 17px; overflow-wrap: anywhere; }
+  .desc { margin: 0 0 14px; color: #c9d9f0; font-size: 17px; overflow-wrap: anywhere; }
+  .evolve { margin: 0 0 24px; font-size: 14px; color: var(--gold); }
   dl { display: flex; flex-wrap: wrap; gap: 30px; margin: 0 0 28px; padding-top: 20px; border-top: 1px solid var(--line); }
   dt { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 2px; }
   dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }

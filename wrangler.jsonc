@@ -6,11 +6,13 @@
   "compatibility_date": "2026-11-01",
   "routes": [{ "pattern": "dshsea.com", "custom_domain": true }],
   "workers_dev": false,
+  // Bottles and the leaderboard. Schema: worker/schema.sql
+  "d1_databases": [{ "binding": "DB", "database_name": "dshsea", "database_id": "6b9d8900-fb66-4349-8ccc-0c370aebcf16" }],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
     // Browser navigations that match no file would otherwise get the 404 page without the Worker being asked.
-    "run_worker_first": ["/r/*", "/zh/r/*"]
+    "run_worker_first": ["/r/*", "/zh/r/*", "/u/*", "/zh/u/*", "/api/*"]
   }
 }

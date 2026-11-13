@@ -1,0 +1,59 @@
+---
+import Base from '../../layouts/Base.astro';
+import { ownerPages, getCatalog, fmt } from '../../lib/projects';
+import { creatureSrc, tintStyle } from '../../lib/species';
+const owners = ownerPages();
+// A few prolific divers to click on.
+const featured = [...owners.values()].sort((a, b) => b.L.length - a.L.length).slice(4, 28);
+---
+<Base lang="en" path="/u" single title="What lives in your GitHub?" description={`Type a GitHub username and meet the sea creatures your DeepSeek Harness plugins have become. ${fmt(owners.size)} developers, ${fmt(getCatalog().entries.length)} creatures.`}>
+  <main class="page">
+    <h1>What lives in <em>your</em> GitHub?</h1>
+    <p class="lede">Every repo tagged <code>dsh-plugin</code> is a creature in the ocean. Type a GitHub username to meet yours, and get a card to show them off.</p>
+    <form id="who">
+      <span>github.com/</span>
+      <input name="u" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="username" required pattern="[A-Za-z0-9-]+" aria-label="GitHub username" />
+      <button class="btn">Dive</button>
+    </form>
+    <p id="none" class="none" hidden></p>
+    <h2>Divers with the most creatures</h2>
+    <ul class="divers">
+      {featured.map((o) => (
+        <li><a href={`/u/${o.KEY}`}><img class="creature" src={creatureSrc(o.L[0][2] as any)} style={`--tint:${o.L[0][3]}deg`} alt="" loading="lazy" /><b>{o.OWNER}</b><span>{o.COUNT} creatures</span></a></li>
+      ))}
+    </ul>
+  </main>
+  <script>
+    const form = document.getElementById('who') as HTMLFormElement;
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const u = new FormData(form).get('u')!.toString().trim().replace(/^@/, '').toLowerCase();
+      if (u) location.href = `/u/${encodeURIComponent(u)}`;
+    });
+    // The Worker sends unknown owners back here.
+    const none = new URLSearchParams(location.search).get('none');
+    if (none) {
+      const el = document.getElementById('none')!;
+      el.textContent = `Nothing of ${none}’s is swimming here yet. Add the dsh-plugin topic to a repo on GitHub and it will arrive with the next weekly crawl.`;
+      el.hidden = false;
+      (form.elements.namedItem('u') as HTMLInputElement).value = none;
+    }
+  </script>
+</Base>
+
+<style>
+  code { font: 0.9em ui-monospace, 'SF Mono', Menlo, monospace; color: var(--glow); }
+  form { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 20px; color: var(--dim); }
+  input {
+    flex: 1; min-width: 180px; max-width: 360px; font: 20px var(--body); color: var(--text); outline: none;
+    background: rgba(8, 18, 42, 0.6); border: 1px solid var(--line-strong); border-radius: 999px; padding: 12px 22px;
+  }
+  input:focus { border-color: var(--glow); }
+  .none { margin: 18px 0 0; color: var(--gold); max-width: 60ch; }
+  .divers { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .divers a { display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  .divers a:hover { border-color: var(--line-strong); }
+  .divers img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; }
+  .divers b { font-weight: 600; overflow-wrap: anywhere; }
+  .divers span { font-size: 12px; color: var(--dim); }
+</style>
