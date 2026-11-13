@@ -1,7 +1,8 @@
 name: Sync wild creatures
 
-# Once a week, crawl every repo tagged dsh-plugin into data/wild.json.
-# The commit triggers a rebuild, so new plugins appear in the ocean on their own.
+# Once a week, crawl every repo tagged dsh-plugin into data/wild.json, then check which of them are
+# really installable (data/bundles.json). A change is committed and the Deploy workflow is started,
+# so new plugins appear in the ocean on their own.
 on:
   schedule:
     - cron: '41 4 * * 1'
@@ -9,11 +10,12 @@ on:
 
 permissions:
   contents: write
+  actions: write # to start the Deploy workflow
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,14 +24,21 @@ jobs:
       - run: node scripts/sync-wild.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Commit if changed
+      - name: Check which repos declare a DSH bundle
+        run: node scripts/sync-bundles.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit if changed, then deploy
         run: |
-          if git diff --quiet data/wild.json; then
+          git add data/wild.json data/bundles.json
+          if git diff --cached --quiet; then
             echo "No changes."
             exit 0
           fi
           git config user.name "dshsea-bot"
           git config user.email "bot@dshsea.com"
-          git add data/wild.json
           git commit -m "chore: sync wild creatures"
           git push
+          gh workflow run deploy.yml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
