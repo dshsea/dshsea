@@ -26,27 +26,6 @@
 - **野生生物。** 每周一次的 GitHub Action 会把所有带 `dsh-plugin` topic 的仓库抓进 `data/wild.json`，它们会自动出现在海里。
 - **已认领的生物。** 作者在 [`data/projects/`](data/projects) 下加一个 YAML 文件并提 PR 即可认领。认领后拥有独立页面、分享卡片、徽章，还能自选物种。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-## 开发
+## 参与
 
-[Astro](https://astro.build) 站点加一个很小的 Cloudflare Worker。需要 Node 24（见 `.nvmrc`）和 pnpm。
-
-```sh
-pnpm install
-pnpm dev          # http://localhost:4321（没有漂流瓶和排行榜，它们需要 Worker）
-pnpm build        # 先校验数据，再构建到 dist/
-npx wrangler d1 execute dshsea --local --file worker/schema.sql   # 只需一次，用于本地的漂流瓶和排行榜
-npx wrangler dev  # 带 Worker 运行构建产物，与线上一致
-pnpm sync-stars   # 刷新已认领项目的 star
-GITHUB_TOKEN=... node scripts/sync-wild.mjs   # 重新抓取所有 dsh-plugin 仓库（约 15 分钟）
-```
-
-目录结构说明见[英文 README](README.md#development)。部署在 Cloudflare Workers 上：`pnpm build` 之后执行 `npx wrangler deploy`。
-
-### 管理漂流瓶和排行榜
-
-漂流瓶限 140 字、不能带链接、每位访客每天 5 个；被举报 3 次会自动隐藏。排行榜分数由浏览器自行上报，只当作娱乐。手动下架：
-
-```sh
-npx wrangler d1 execute dshsea --remote --command "UPDATE bottles SET hidden = 1 WHERE id = 123"
-npx wrangler d1 execute dshsea --remote --command "UPDATE scores SET hidden = 1 WHERE name = 'someone'"
-```
+认领方式、文件格式和收录规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。本地运行和部署见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)（英文）。

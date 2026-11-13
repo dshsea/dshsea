@@ -22,8 +22,8 @@ export const GET: APIRoute = ({ props }) => {
 <rect width="${W}" height="${H}" fill="url(#g)"/>
 <rect width="${leftW}" height="${H}" fill="#6ef3d6"/>
 </g>
-<circle cx="17" cy="14" r="6" fill="none" stroke="#04102a" stroke-width="1.6"/>
-<path d="M11.6 15.2c1.8-1.4 3.6 1.4 5.4 0s3.6 1.4 5.4 0" fill="none" stroke="#04102a" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M12 21c0-9 7-12 9.5-6.5" fill="none" stroke="#04102a" stroke-width="1.8" stroke-linecap="round"/>
+<circle cx="21.5" cy="14.5" r="3.2" fill="#04102a"/>
 <g font-family="Inter,Helvetica Neue,Arial,sans-serif" font-size="12">
 <text x="29" y="18.2" font-weight="700" fill="#04102a">dshsea</text>
 <text x="${leftW + 11}" y="18.2" fill="#dbe8ff">${right}</text>

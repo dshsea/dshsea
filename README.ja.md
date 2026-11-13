@@ -26,16 +26,6 @@ DeepSeek Harness のプラグインは、底なしの海のどこかにいる生
 - **野生の生き物。** 週 1 回の GitHub Action が `dsh-plugin` トピックのリポジトリをすべて `data/wild.json` に取り込み、自動的に海に現れます。
 - **登録済みの生き物。** 作者が [`data/projects/`](data/projects) に YAML ファイルを 1 つ追加して PR を送ると登録できます。専用ページ、共有カード、バッジが付き、種も選べます。詳しくは [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
-## 開発
+## 参加する
 
-[Astro](https://astro.build) のサイトと小さな Cloudflare Worker で構成されています。Node 24（`.nvmrc` 参照）と pnpm が必要です。
-
-```sh
-pnpm install
-pnpm dev          # http://localhost:4321（ボトルとランキングは Worker が必要なため動きません）
-pnpm build        # データを検証してから dist/ にビルド
-npx wrangler d1 execute dshsea --local --file worker/schema.sql   # 初回のみ。ローカルのボトルとランキング用
-npx wrangler dev  # Worker 付きでビルド結果を配信。本番と同じ構成
-```
-
-ディレクトリ構成は[英語版 README](README.md#development) を参照してください。デプロイ先は Cloudflare Workers です（`pnpm build` のあと `npx wrangler deploy`）。
+登録方法、ファイル形式、掲載ルールは [CONTRIBUTING.md](CONTRIBUTING.md) にあります。ローカルでの実行とデプロイは [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)（英語）を参照してください。

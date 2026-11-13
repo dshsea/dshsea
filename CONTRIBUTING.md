@@ -64,3 +64,5 @@ pnpm install
 pnpm validate   # checks every file in data/projects
 pnpm dev        # see your creature swim
 ```
+
+More on running and deploying the site: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).

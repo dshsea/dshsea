@@ -26,16 +26,6 @@ DeepSeek Harness 플러그인은 모두 끝없는 바다 어딘가에 사는 생
 - **야생 생물.** 매주 실행되는 GitHub Action이 `dsh-plugin` 토픽이 붙은 모든 저장소를 `data/wild.json`으로 수집하고, 자동으로 바다에 나타납니다.
 - **등록된 생물.** 작성자가 [`data/projects/`](data/projects)에 YAML 파일 하나를 추가해 PR을 보내면 등록됩니다. 전용 페이지, 공유 카드, 배지가 생기고 종도 고를 수 있습니다. 자세한 내용은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
 
-## 개발
+## 참여하기
 
-[Astro](https://astro.build) 사이트와 작은 Cloudflare Worker로 이루어져 있습니다. Node 24(`.nvmrc` 참고)와 pnpm이 필요합니다.
-
-```sh
-pnpm install
-pnpm dev          # http://localhost:4321 (유리병과 순위표는 Worker가 필요해서 동작하지 않습니다)
-pnpm build        # 데이터를 검증한 뒤 dist/에 빌드
-npx wrangler d1 execute dshsea --local --file worker/schema.sql   # 최초 1회. 로컬 유리병과 순위표용
-npx wrangler dev  # Worker와 함께 빌드 결과를 제공. 운영 환경과 동일
-```
-
-디렉터리 구조는 [영문 README](README.md#development)를 참고하세요. Cloudflare Workers에 배포합니다(`pnpm build` 후 `npx wrangler deploy`).
+등록 방법, 파일 형식, 등재 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)에 있습니다. 로컬 실행과 배포는 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)(영문)를 참고하세요.
