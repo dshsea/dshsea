@@ -31,6 +31,14 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      // Without this event Tag Manager never fires its page-view triggers.
+      dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' });
+    </script>
+    <script is:inline async src="https://www.googletagmanager.com/gtm.js?id=GTM-KZQBRPV9"></script>
     <title>{pageTitle}</title>
     <meta name="description" content={desc} />
     <link rel="canonical" href={canonical} />
