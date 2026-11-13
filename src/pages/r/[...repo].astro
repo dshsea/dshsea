@@ -27,6 +27,7 @@ const jsonLd = template
       codeRepository: `https://github.com/${p.REPO}`, author: { '@type': 'Person', name: p.OWNER, url: `https://github.com/${p.OWNER}` },
     }).replace(/</g, '\\u003c');
 const badge = `[![${p.NAME} on dshsea](${SITE}/badge.svg)](${SITE}/r/${p.KEY})`;
+const hookBadge = `[![${p.NAME} hooked on dshsea](${SITE}/api/badge/${p.KEY}.svg)](${SITE}/r/${p.KEY})`;
 ---
 <Base lang="en" path={`/r/${p.KEY}`} title={`${p.REPO} — DeepSeek Harness plugin`} description={p.META} single noindex={template}>
   <script type="application/ld+json" set:html={jsonLd} />
@@ -48,6 +49,7 @@ const badge = `[![${p.NAME} on dshsea](${SITE}/badge.svg)](${SITE}/r/${p.KEY})`;
           <div><dt>Stars</dt><dd>★ {p.STARS}</dd></div>
           <div><dt>Created</dt><dd>{p.CREATED}</dd></div>
           <div><dt>Status</dt><dd>Wild · unclaimed</dd></div>
+          <div id="hooked" data-repo={p.KEY} hidden><dt>Hooked by divers</dt><dd></dd></div>
         </dl>
         <div class="actions">
           <a class="btn" href={`https://github.com/${p.REPO}`} rel="noopener">View on GitHub ↗</a>
@@ -73,8 +75,23 @@ const badge = `[![${p.NAME} on dshsea](${SITE}/badge.svg)](${SITE}/r/${p.KEY})`;
     <p class="lede">Is this your plugin? Show where it lives. <a href={`/submit?repo=${p.REPO}`}>Claiming it</a> also gets you your own description, a share card and a species of your choice.</p>
     <p><img src="/badge.svg" alt="dshsea badge" height="28" /></p>
     <pre class="code">{badge}</pre>
+    <p class="lede">Or show how many times divers have <a href="/">fished it out of the ocean</a>. The number is live.</p>
+    <p><img src={`/api/badge/${p.KEY}.svg`} alt="Times hooked on dshsea" height="28" /></p>
+    <pre class="code">{hookBadge}</pre>
     <p class="fine">Something wrong with this page, or want it removed? <a href={`${REPO_URL}/issues`} rel="noopener">Open an issue</a>.</p>
   </main>
+  <script>
+    // How many times this creature has been fished up (worker/index.js); absent where there is no server.
+    const el = document.getElementById('hooked')!;
+    fetch(`/api/catch?repo=${encodeURIComponent(el.dataset.repo!)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((res) => {
+        if (!res?.n) return;
+        el.querySelector('dd')!.textContent = `${res.n.toLocaleString('en-US')}×`;
+        el.hidden = false;
+      })
+      .catch(() => {});
+  </script>
 </Base>
 
 <style>

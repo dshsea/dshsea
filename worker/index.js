@@ -3,7 +3,7 @@
 //   /r/owner/repo  one landing page per repo, and
 //   /u/owner       one page per GitHub owner: the Astro build emits each page once as a template full
 //                  of __TOKENS__ plus a bucketed lookup, and this fills one into the other;
-//   /api/*         bottles and the leaderboard, stored in D1 (see worker/schema.sql).
+//   /api/*         bottles, the leaderboard and fishing counts, stored in D1 (see worker/schema.sql).
 
 // Must match hashKey() in src/lib/species.ts.
 function hashKey(s) {
@@ -119,12 +119,63 @@ async function api(request, env, url) {
     await db.prepare(
       `INSERT INTO scores (id, name, seen, species, deepest, ach, updated, iph) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
        ON CONFLICT(id) DO UPDATE SET name = ?2, seen = MAX(seen, ?3), species = MAX(species, ?4), deepest = MAX(deepest, ?5), ach = MAX(ach, ?6), updated = ?7, iph = ?8`,
-    ).bind(id, name, int(body.seen, 60000), int(body.species, 24), int(body.deepest, 5e6), int(body.ach, 15), now(), iph).run();
+    ).bind(id, name, int(body.seen, 60000), int(body.species, 24), int(body.deepest, 5e6), int(body.ach, 16), now(), iph).run();
     const rank = await db
       .prepare('SELECT COUNT(*) + 1 AS r FROM scores WHERE hidden = 0 AND seen > (SELECT seen FROM scores WHERE id = ?)').bind(id).first();
     return json({ ok: true, rank: rank.r });
   }
+
+  // ----- fishing: how many times each repo has been landed -----
+  if (route === 'GET /api/catch') {
+    const key = repoKey(url.searchParams.get('repo'));
+    if (!key) return json({ error: 'bad request' }, 400);
+    return json({ n: await caught(db, key) }, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+  if (route === 'GET /api/catch/top') {
+    const { results } = await db.prepare('SELECT repo, n FROM catches ORDER BY n DESC, updated DESC LIMIT 8').all();
+    return json(results, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+  if (route === 'POST /api/catch') {
+    const key = repoKey(body.repo);
+    // Only repos that are really in the ocean can be counted.
+    if (!key || !(await lookup(env, url, 'r', 256, key))) return json({ error: 'not found' }, 404);
+    const iph = await ipHash(request);
+    const day = Math.floor(now() / DAY);
+    // One visitor counts once per repo per day, and for at most 12 repos a day.
+    const { n } = await db.prepare('SELECT COUNT(*) AS n FROM hooks WHERE iph = ?').bind(iph).first();
+    const fresh = n < 12 && (await db.prepare('INSERT OR IGNORE INTO hooks (iph, repo, day) VALUES (?, ?, ?)').bind(iph, key, day).run()).meta.changes > 0;
+    if (fresh) {
+      await db.prepare('INSERT INTO catches (repo, n, updated) VALUES (?1, 1, ?2) ON CONFLICT(repo) DO UPDATE SET n = n + 1, updated = ?2').bind(key, now()).run();
+      // The IP hash rotates daily, so older rows can never match again.
+      if (Math.random() < 0.02) await db.prepare('DELETE FROM hooks WHERE day < ?').bind(day - 1).run();
+    }
+    return json({ n: Math.max(1, await caught(db, key)) });
+  }
+  const badge = request.method === 'GET' && url.pathname.match(/^\/api\/badge\/([^/]+\/[^/]+)\.svg$/);
+  if (badge) {
+    const key = repoKey(decode(badge[1]));
+    if (!key) return json({ error: 'bad request' }, 400);
+    return new Response(catchBadge(await caught(db, key)), { headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'public, max-age=1800' } });
+  }
   return json({ error: 'not found' }, 404);
+}
+const repoKey = (v) => {
+  const key = String(v ?? '').toLowerCase();
+  return /^[a-z0-9_.-]{1,60}\/[a-z0-9_.-]{1,110}$/.test(key) ? key : null;
+};
+const caught = async (db, key) => (await db.prepare('SELECT n FROM catches WHERE repo = ?').bind(key).first())?.n ?? 0;
+// Same look as public/badge.svg.
+function catchBadge(n) {
+  const right = n ? `hooked ${n.toLocaleString('en-US')} time${n === 1 ? '' : 's'}` : 'not hooked yet';
+  const W = Math.round(82 + right.length * 6.6 + 22);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="28" viewBox="0 0 ${W} 28" role="img" aria-label="dshsea: ${right}">
+<title>How many times divers have fished this plugin out of the dshsea ocean</title>
+<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0d3f7c"/><stop offset="1" stop-color="#04102a"/></linearGradient><clipPath id="r"><rect width="${W}" height="28" rx="14"/></clipPath></defs>
+<g clip-path="url(#r)"><rect width="${W}" height="28" fill="url(#g)"/><rect width="82" height="28" fill="#6ef3d6"/></g>
+<path d="M12 21c0-9 7-12 9.5-6.5" fill="none" stroke="#04102a" stroke-width="1.8" stroke-linecap="round"/>
+<circle cx="21.5" cy="14.5" r="3.2" fill="#04102a"/>
+<g font-family="Inter,Helvetica Neue,Arial,sans-serif" font-size="12"><text x="29" y="18.2" font-weight="700" fill="#04102a">dshsea</text><text x="93" y="18.2" fill="#dbe8ff">${right}</text></g>
+</svg>`;
 }
 
 export default {

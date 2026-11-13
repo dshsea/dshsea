@@ -3,10 +3,12 @@ import Base from '../layouts/Base.astro';
 import { dict, href, prefix, type Lang } from '../lib/i18n';
 import { getCatalog, getProjects, getFresh, CHUNK, fmt } from '../lib/projects';
 import { depthOf, fmtDepth } from '../lib/species';
+import { BAIT_IDS } from '../lib/bait';
 
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const t = dict(lang);
+const f = t.fish;
 const { entries } = getCatalog();
 const projects = getProjects();
 const count = entries.length;
@@ -42,6 +44,7 @@ const payload = {
     bottleSent: t.bottleSent, bottleFound: t.bottleFound, bottleReported: t.bottleReported, bottleErr: t.bottleErr,
     boardYou: t.boardYou, boardEmpty: t.boardEmpty, boardErr: t.boardErr, boardLoading: t.boardLoading, boardFail: t.boardFail, logSeen: t.logSeen,
     shareTweet: t.shareTweet('{name}', '{species}', '{depth}'),
+    fish: t.fish,
   },
 };
 const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet(fmtDepth(seabed)))}&url=${encodeURIComponent('https://dshsea.com' + href(lang, '/'))}`;
@@ -104,6 +107,10 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
       <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M2 5.5h2.6L5.8 4h4.4l1.2 1.5H14V12H2z"/><circle cx="8" cy="8.6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
       {t.photo}
     </button>
+    <button id="fish" type="button" title={f.title}>
+      <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M9 1.5v8.2a3 3 0 1 1-6 0V8.5M9 1.5l4 2.5-4 1.5"/></svg>
+      {f.btn}
+    </button>
   </div>
   <button id="bottle-btn" class="side" type="button" title={t.bottle} hidden>
     <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M6.5 1.5h3v3l1.5 2v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7l1.5-2zM5 9h6"/></svg>
@@ -121,6 +128,74 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   </section>
   <button id="bounty" type="button" hidden><i></i><span>{t.bounty}</span></button>
   <button id="tracker" type="button" title={t.trackHint} hidden><i></i><span></span></button>
+
+  <section id="fish-sheet" class="sheet" data-state="idle" hidden>
+    <button class="x" data-close aria-label={t.close}>×</button>
+    <h2>{f.title}</h2>
+    <p class="sub">{f.sub} <b id="fish-left"></b></p>
+    <div class="fish-setup">
+      <h3>{f.baitTitle}</h3>
+      <div id="fish-baits" class="chips">
+        {BAIT_IDS.map((id) => <button type="button" data-bait={id} aria-pressed={id === 'any' ? 'true' : 'false'}>{f.baits[id]}</button>)}
+      </div>
+      <input id="fish-custom" maxlength="30" autocomplete="off" spellcheck="false" placeholder={f.custom} aria-label={f.custom} />
+      <h3>{f.waterTitle}</h3>
+      <div id="fish-waters" class="chips">
+        {['any', 'top', 'mid', 'deep'].map((id) => <button type="button" data-water={id} aria-pressed={id === 'any' ? 'true' : 'false'}>{f.waters[id]}</button>)}
+      </div>
+      <button id="fish-cast" class="btn" type="button">{f.cast}</button>
+      <div class="fish-lists">
+        <div>
+          <h3>{f.mine}</h3>
+          <ul id="fish-mine" class="fish-list"></ul>
+        </div>
+        <div id="fish-top-wrap" hidden>
+          <h3>{f.top}</h3>
+          <ol id="fish-top" class="fish-list"></ol>
+        </div>
+      </div>
+    </div>
+    <div class="fish-play">
+      <div id="fish-pond">
+        <i class="line"></i>
+        <i class="bobber"></i>
+        <img id="fish-shadow" alt="" hidden />
+      </div>
+      <p id="fish-status" role="status"></p>
+      <div class="meters">
+        <span>{f.tension}</span>
+        <div class="meter"><i id="fish-tension"></i></div>
+        <div class="meter reel"><i id="fish-progress"></i></div>
+      </div>
+      <button id="fish-act" class="btn" type="button"></button>
+    </div>
+    <div class="fish-result">
+      <div class="head">
+        <img id="fish-img" class="creature" alt="" />
+        <div>
+          <span id="fish-kind" class="chip"></span>
+          <h2 id="fish-name"></h2>
+          <p id="fish-meta"></p>
+        </div>
+      </div>
+      <p id="fish-desc"></p>
+      <p id="fish-count"></p>
+      <div class="actions">
+        <a id="fish-visit" class="btn" target="_blank" rel="noopener">{t.visit} ↗</a>
+        <a id="fish-share" class="btn alt" target="_blank" rel="noopener">{t.share}</a>
+        <a id="fish-save" class="btn alt">{f.save}</a>
+        <button id="fish-dive" class="btn ghost" type="button">{f.dive}</button>
+        <a id="fish-details" class="btn ghost">{t.details}</a>
+      </div>
+      <a id="fish-claim" class="claim" hidden>{t.claim} →</a>
+      <button class="btn ghost again" type="button" data-again>{f.again}</button>
+    </div>
+    <div class="fish-lost">
+      <p id="fish-lost-text" class="result"></p>
+      <p id="fish-lost-teaser" class="sub"></p>
+      <button class="btn" type="button" data-again>{f.again}</button>
+    </div>
+  </section>
 
   <section id="bounty-sheet" class="sheet" hidden>
     <button class="x" data-close aria-label={t.close}>×</button>
@@ -407,6 +482,85 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   #board-list :global(li b) { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #board-list :global(li:nth-child(-n + 3))::before { color: var(--gold); font-weight: 700; }
   #board-list :global(li.me) { background: rgba(110, 243, 214, 0.1); }
+  /* ----- fishing ----- */
+  #fish-sheet { width: min(620px, calc(100vw - 24px)); }
+  #fish-left { color: var(--glow); font-weight: 600; white-space: nowrap; }
+  #fish-sheet > div { display: none; }
+  #fish-sheet[data-state='idle'] .fish-setup, #fish-sheet[data-state='result'] .fish-result, #fish-sheet[data-state='lost'] .fish-lost { display: block; }
+  #fish-sheet[data-state='wait'] .fish-play, #fish-sheet[data-state='bite'] .fish-play, #fish-sheet[data-state='reel'] .fish-play { display: block; }
+  .fish-setup h3:first-child { margin-top: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips button {
+    font: 500 13px var(--body); color: var(--text); cursor: pointer; padding: 8px 14px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line-strong); transition: background 0.2s, color 0.2s;
+  }
+  .chips button:hover { background: rgba(255, 255, 255, 0.12); }
+  .chips button[aria-pressed='true'] { color: #03131f; background: var(--glow); border-color: var(--glow); }
+  #fish-custom {
+    display: block; width: 100%; margin-top: 12px; font: 15px var(--body); color: var(--text); outline: none;
+    background: rgba(2, 7, 20, 0.6); border: 1px solid var(--line-strong); border-radius: 14px; padding: 11px 14px;
+  }
+  #fish-custom:focus { border-color: var(--glow); }
+  #fish-cast { margin-top: 22px; min-width: 150px; justify-content: center; }
+  #fish-cast:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
+  .fish-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 28px; }
+  .fish-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; color: var(--dim); }
+  .fish-list :global(li) { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .fish-list :global(img) { width: 40px; height: 30px; object-fit: contain; flex: none; }
+  .fish-list :global(a) { color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fish-list :global(a:hover) { color: var(--glow); }
+  .fish-list :global(span) { margin-left: auto; flex: none; color: var(--gold); font-variant-numeric: tabular-nums; }
+  #fish-pond {
+    --pull: 0; position: relative; height: 230px; border-radius: 18px; overflow: hidden; border: 1px solid var(--line);
+    background: linear-gradient(#1b86b4 0, #0f5c96 26%, #0a2f66 62%, #050f2a 100%);
+  }
+  #fish-pond::before { content: ''; position: absolute; left: 0; right: 0; top: 38px; height: 2px; background: rgba(255, 255, 255, 0.35); }
+  #fish-pond .line { position: absolute; left: 50%; top: 0; width: 1px; height: 38px; background: rgba(255, 255, 255, 0.7); }
+  #fish-pond .bobber {
+    position: absolute; left: 50%; top: 30px; width: 14px; height: 18px; margin-left: -7px; border-radius: 50% 50% 46% 46%;
+    background: linear-gradient(#ff6b5e 50%, #fff 50%); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); animation: bobber 2.4s ease-in-out infinite;
+  }
+  @keyframes bobber { 50% { transform: translateY(3px) rotate(4deg); } }
+  #fish-sheet[data-state='bite'] .bobber { animation: tug 0.28s ease-in-out infinite; }
+  #fish-sheet[data-state='reel'] .bobber { animation: none; transform: translateY(10px); }
+  @keyframes tug { 50% { transform: translateY(13px); } }
+  #fish-shadow {
+    position: absolute; left: 50%; top: 150px; width: 150px; height: 84px; margin-left: -75px; object-fit: contain;
+    filter: brightness(0) blur(1.5px); opacity: 0.5; transform: translateY(calc(var(--pull) * -84px)) scale(calc(0.8 + var(--pull) * 0.35));
+    animation: lurk 3s ease-in-out infinite;
+  }
+  @keyframes lurk { 50% { margin-left: -55px; } }
+  :global(#fish-pond.surge) #fish-shadow { animation: thrash 0.16s linear infinite; opacity: 0.75; }
+  @keyframes thrash { 0% { margin-left: -87px; } 50% { margin-left: -63px; } 100% { margin-left: -87px; } }
+  :global(#fish-pond.surge) { border-color: rgba(255, 140, 120, 0.8); }
+  #fish-status { margin: 16px 0 12px; font-size: 15px; min-height: 1.5em; }
+  #fish-sheet[data-state='bite'] #fish-status { color: var(--gold); font-weight: 600; }
+  .meters { display: grid; gap: 6px; margin-bottom: 18px; font-size: 11px; color: var(--dim); letter-spacing: 0.14em; text-transform: uppercase; }
+  #fish-sheet:not([data-state='reel']) .meters { visibility: hidden; }
+  .meter { height: 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--glow); }
+  .meter :global(i[data-level='mid']) { background: var(--gold); }
+  .meter :global(i[data-level='high']) { background: #ff6b5e; }
+  .meter.reel { height: 5px; }
+  .meter.reel i { background: #6cc8ff; }
+  #fish-act { width: 100%; justify-content: center; padding: 18px; font-size: 16px; user-select: none; -webkit-user-select: none; touch-action: none; -webkit-touch-callout: none; }
+  #fish-act:disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: none; }
+  :global(#fish-act.held) { transform: scale(0.98); filter: brightness(0.85); }
+  #fish-sheet[data-state='bite'] #fish-act { animation: pulse 0.5s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform: scale(1.03); } }
+  .fish-result .head { display: flex; align-items: center; gap: 20px; margin: 8px 0 14px; }
+  #fish-img { width: 180px; height: 130px; object-fit: contain; flex: none; animation: landed 0.6s cubic-bezier(0.2, 1.4, 0.4, 1); }
+  @keyframes landed { from { transform: translateY(60px) scale(0.6); opacity: 0; } }
+  #fish-name { margin: 8px 0 4px; overflow-wrap: anywhere; }
+  #fish-meta { margin: 0; color: var(--gold); font-size: 14px; font-variant-numeric: tabular-nums; }
+  #fish-desc { font-size: 15px; line-height: 1.6; color: #c9d9f0; margin: 0 0 10px; max-height: 6.4em; overflow: auto; }
+  #fish-count { font-size: 13px; color: var(--glow); margin: 0 0 16px; min-height: 1.4em; }
+  .fish-result .actions .btn { padding: 11px 16px; }
+  #fish-save:not([href]) { opacity: 0.4; pointer-events: none; }
+  .fish-result .claim { display: block; font-size: 13px; color: var(--glow); text-decoration: none; margin-top: 12px; }
+  .fish-result .again { margin-top: 18px; }
+  .fish-lost { text-align: center; padding: 30px 0 10px; }
+  @media (prefers-reduced-motion: reduce) { #fish-pond .bobber, #fish-shadow, #fish-img, #fish-act { animation: none !important; } }
   .sheet {
     position: fixed; z-index: 40; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 24px)); max-height: calc(100dvh - 48px); overflow: auto;
     background: rgba(8, 18, 42, 0.86); border: 1px solid var(--line-strong); border-radius: 24px; padding: 28px;
@@ -454,7 +608,10 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   @media (max-width: 640px) {
     .helm { left: auto; right: 10px; bottom: 12px; transform: none; }
     .helm button { font-size: 12px; padding: 10px 13px; }
-    .helm #random, .helm #photo { font-size: 0; gap: 0; padding: 10px; }
+    .helm #random, .helm #photo, .helm #fish { font-size: 0; gap: 0; padding: 10px; }
+    #fish-img { width: 110px; height: 84px; }
+    #fish-pond { height: 180px; }
+    #fish-shadow { top: 110px; }
     #bounty { right: 10px; top: 190px; font-size: 12px; padding: 8px 12px; }
     #bottle-btn { right: 10px; top: 230px; font-size: 0; gap: 0; padding: 9px; }
     .wanted img { width: 110px; }

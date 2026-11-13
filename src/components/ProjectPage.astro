@@ -14,6 +14,7 @@ const pageUrl = SITE + href(lang, pagePath);
 const tweet = t.shareTweet(p.name, lang === 'zh' ? species : species.toLowerCase(), fmtDepth(p.depth));
 const shareUrl = `https://x.com/intent/post?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent(pageUrl)}`;
 const badge = `[![${p.name} on dshsea](${SITE}/badge/${p.slug}.svg)](${SITE}/p/${p.slug})`;
+const hookBadge = p.repo && `[![${p.name} hooked on dshsea](${SITE}/api/badge/${p.key}.svg)](${SITE}/p/${p.slug})`;
 ---
 <Base
   lang={lang}
@@ -39,6 +40,7 @@ const badge = `[![${p.name} on dshsea](${SITE}/badge/${p.slug}.svg)](${SITE}/p/$
           <div><dt>{t.stars}</dt><dd>★ {fmt(p.stars)}</dd></div>
           <div><dt>{t.category}</dt><dd>{(t.categoryNames as any)[p.category]}</dd></div>
           {p.author && <div><dt>{t.author}</dt><dd>{p.author}</dd></div>}
+          {p.repo && <div id="hooked" data-repo={p.key} hidden><dt>{t.hookedBy}</dt><dd></dd></div>}
         </dl>
         <div class="actions">
           <a class="btn" href={p.url} rel="noopener" target="_blank">{t.visit} ↗</a>
@@ -55,8 +57,26 @@ const badge = `[![${p.name} on dshsea](${SITE}/badge/${p.slug}.svg)](${SITE}/p/$
       <pre class="code" id="badge-code">{badge}</pre>
       <button class="btn alt" id="copy" data-done={t.copied}>{t.copy}</button>
     </div>
+    {hookBadge && (
+      <p class="lede">{t.hookBadgeSub}</p>
+      <p><img src={`/api/badge/${p.key}.svg`} alt="" height="28" /></p>
+      <pre class="code">{hookBadge}</pre>
+    )}
   </main>
   <script>
+    // How many times this creature has been fished up; absent where there is no server.
+    const hooked = document.getElementById('hooked');
+    if (hooked) {
+      fetch(`/api/catch?repo=${encodeURIComponent(hooked.dataset.repo!)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((res) => {
+          if (!res?.n) return;
+          hooked.querySelector('dd')!.textContent = `${res.n.toLocaleString('en-US')}×`;
+          hooked.hidden = false;
+        })
+        .catch(() => {});
+    }
+
     const btn = document.getElementById('copy')!;
     btn.addEventListener('click', async () => {
       await navigator.clipboard.writeText(document.getElementById('badge-code')!.textContent ?? '');

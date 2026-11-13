@@ -6,6 +6,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { SPECIES_IDS, SPECIES_RARITY, creatureSrc, tintDeg, zoneFor, traits, depthOf, fmtDepth, evolution, hashKey, DEPTH_START, DEPTH_STEP, type SpeciesId } from '../lib/species';
+import { initFishing, type FishLog } from './fishing';
 import { SPECIES, creatureMaterial, speciesGeometry, schoolFishGeometry } from './creatures3d';
 import {
   TRAIL, clamp, smooth, rand, BASIC_VERT, WATER_FRAG, SKY_FRAG, RAY_FRAG, PLANKTON_VERT, PLANKTON_FRAG,
@@ -190,8 +191,9 @@ export async function initOcean3D() {
     bounty: { day: string; start: number; ms: number; streak: number; last: string };
     /** Leaderboard identity: a random id kept in this browser, and the chosen name. */
     board: { id: string; name: string };
+    fish: FishLog;
   };
-  let log: Log = { seen: {}, species: {}, rarity: {}, best: [], ach: {}, deepest: 0, bounty: { day: '', start: 0, ms: 0, streak: 0, last: '' }, board: { id: '', name: '' } };
+  let log: Log = { seen: {}, species: {}, rarity: {}, best: [], ach: {}, deepest: 0, bounty: { day: '', start: 0, ms: 0, streak: 0, last: '' }, board: { id: '', name: '' }, fish: { day: '', used: 0, total: 0, mine: [], recent: [] } };
   try {
     log = { ...log, ...JSON.parse(localStorage.getItem(LOG_KEY) ?? '{}') };
   } catch {
@@ -228,7 +230,7 @@ export async function initOcean3D() {
     ['sp8', () => speciesCount() >= 8], ['sp16', () => speciesCount() >= 16], ['spAll', () => speciesCount() >= SPECIES_IDS.length],
     ['rare', () => !!log.rarity.rare], ['epic', () => !!log.rarity.epic], ['whale', () => !!log.species.whale],
     ['dive1', () => log.deepest >= 1000], ['dive11', () => log.deepest >= 11000], ['dive100', () => log.deepest >= 100000],
-    ['bottom', () => log.deepest >= SEABED - 80], ['photo', () => !!log.ach.photo],
+    ['bottom', () => log.deepest >= SEABED - 80], ['photo', () => !!log.ach.photo], ['fish', () => log.fish.total >= 1],
   ];
   function checkAchievements() {
     for (const [id, earned] of ACH) {
@@ -1326,6 +1328,7 @@ export async function initOcean3D() {
     if (e.key === 'Escape') {
       closeCard();
       for (const id of ['egg', 'dex', 'shot', 'bounty-sheet', 'bottle-write', 'bottle-read', 'board-sheet']) $(id).hidden = true;
+      $('fish-sheet').querySelector<HTMLElement>('[data-close]')!.click();
       return;
     }
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -1504,6 +1507,27 @@ export async function initOcean3D() {
     results.hidden = !query;
   }
   sonar.addEventListener('focus', () => void loadNames().then(search));
+
+  // ----- fishing (fishing.ts): a catch counts as a discovery -----
+  initFishing({
+    t, base: payload.base, count, chunk: CHUNK, log: log.fish,
+    claimed: Object.values(payload.claimed), giants: payload.meta.landmarks.map(([i]) => i),
+    save: () => (logDirty = true),
+    bonus: () => (log.bounty.day === today && log.bounty.ms ? 2 : 0),
+    toast, blip: () => sound.blip(), openSheet, jump, post,
+    names: () => loadNames().then(() => namesLower),
+    landed(c) {
+      const liveOne = [...live.values()].find((x) => x.key === c.key);
+      if (liveOne) liveOne.known = true;
+      if (log.seen[c.key]) return;
+      log.seen[c.key] = 1;
+      log.rarity[c.rarity] = 1;
+      log.species[c.species] = (log.species[c.species] ?? 0) + 1;
+      if (c.stars > 0 && (log.best.length < 6 || c.stars > log.best[log.best.length - 1][1])) {
+        log.best = [...log.best, [c.name, c.stars, c.species, c.hue, c.path] as Find].sort((x, y) => y[1] - x[1]).slice(0, 6);
+      }
+    },
+  });
   sonar.addEventListener('input', () => {
     search();
     if (query && camDepth > 0) ping(tmp.set(0, camera.position.y, -2));

@@ -25,3 +25,18 @@ CREATE TABLE IF NOT EXISTS scores (
   hidden INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS scores_rank ON scores (seen DESC, deepest DESC);
+
+-- Fishing: how many times each repo has been landed, shown on its page and its badge.
+CREATE TABLE IF NOT EXISTS catches (
+  repo TEXT PRIMARY KEY,           -- owner/repo, lower case
+  n INTEGER NOT NULL,
+  updated INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS catches_top ON catches (n DESC);
+-- One row per visitor per repo per day, so a catch is only counted once. Old rows are deleted.
+CREATE TABLE IF NOT EXISTS hooks (
+  iph TEXT NOT NULL,
+  repo TEXT NOT NULL,
+  day INTEGER NOT NULL,
+  PRIMARY KEY (iph, repo)
+);
