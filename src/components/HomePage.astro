@@ -42,7 +42,7 @@ const payload = {
     bounty: t.bounty, bountyIn: t.bountyIn, bountyDone: t.bountyDone, clueZone: t.clueZone, clueName: t.clueName,
     bountyFound: t.bountyFound, bountyStreak: t.bountyStreak, bountyToast: t.bountyToast, bountyTweet: t.bountyTweet,
     bottleSent: t.bottleSent, bottleFound: t.bottleFound, bottleReported: t.bottleReported, bottleErr: t.bottleErr,
-    boardYou: t.boardYou, boardEmpty: t.boardEmpty, boardErr: t.boardErr, boardLoading: t.boardLoading, boardFail: t.boardFail, logSeen: t.logSeen,
+    boardYou: t.boardYou, boardEmpty: t.boardEmpty, boardErr: t.boardErr, boardLoading: t.boardLoading, boardFail: t.boardFail, logSeen: t.logSeen, boardLanded: t.boardLanded, boardBest: t.boardBest,
     shareTweet: t.shareTweet('{name}', '{species}', '{depth}'),
     fish: t.fish,
   },
@@ -119,7 +119,10 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   <section id="board-sheet" class="sheet" hidden>
     <button class="x" data-close aria-label={t.close}>×</button>
     <h2>{t.boardTitle}</h2>
-    <p class="sub">{t.boardSub} <b id="board-you"></b></p>
+    <div id="board-tabs" class="chips" role="tablist">
+      {['dive', 'fish'].map((id) => <button type="button" role="tab" data-tab={id} aria-pressed={id === 'dive' ? 'true' : 'false'}>{t.boardTabs[id]}</button>)}
+    </div>
+    <p class="sub"><span id="board-sub" data-dive={t.boardSub} data-fish={t.boardSubFish}>{t.boardSub}</span> <b id="board-you"></b></p>
     <form id="board-join" hidden>
       <input name="name" minlength="2" maxlength="20" required placeholder={t.boardName} autocomplete="nickname" />
       <button class="btn">{t.boardJoin}</button>
@@ -458,6 +461,7 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   :global(body:not(.dived)) #bounty, :global(body:not(.dived)) #bottle-btn { display: none; }
   #board-sheet { width: min(560px, calc(100vw - 24px)); }
   #board-you { color: var(--glow); font-weight: 600; }
+  #board-tabs { margin: 10px 0 14px; }
   .wanted { display: flex; align-items: center; gap: 22px; margin-bottom: 18px; }
   .wanted img { width: 190px; flex: none; }
   :global(#bounty-sheet:not(.found)) .wanted img { filter: brightness(0) invert(0.4); opacity: 0.6; }
@@ -476,6 +480,7 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   #bottle-read .by { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-size: 13px; color: var(--dim); }
   #bottle-report { background: none; border: 0; padding: 0; color: var(--dim); font: inherit; text-decoration: underline; cursor: pointer; }
   #board-join { display: flex; gap: 10px; margin-bottom: 12px; }
+  #board-join .btn { flex: none; white-space: nowrap; }
   #board-list { margin: 0; padding: 0; list-style: none; counter-reset: rank; display: grid; gap: 4px; font-size: 14px; }
   #board-list :global(li) { counter-increment: rank; display: grid; grid-template-columns: 34px 1fr auto auto; gap: 14px; padding: 7px 10px; border-radius: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
   #board-list :global(li)::before { content: counter(rank); color: var(--dim); }

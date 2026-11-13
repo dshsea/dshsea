@@ -22,8 +22,13 @@ CREATE TABLE IF NOT EXISTS scores (
   ach INTEGER NOT NULL,
   updated INTEGER NOT NULL,
   iph TEXT NOT NULL,
-  hidden INTEGER NOT NULL DEFAULT 0
+  hidden INTEGER NOT NULL DEFAULT 0,
+  fish INTEGER NOT NULL DEFAULT 0,      -- plugins landed by fishing
+  fishbest INTEGER NOT NULL DEFAULT 0,  -- stars of the biggest catch
+  fishname TEXT NOT NULL DEFAULT ''     -- and its name
 );
+-- A database created before fishing needs the three columns added once:
+--   ALTER TABLE scores ADD COLUMN fish INTEGER NOT NULL DEFAULT 0;  (likewise fishbest, and fishname TEXT NOT NULL DEFAULT '')
 CREATE INDEX IF NOT EXISTS scores_rank ON scores (seen DESC, deepest DESC);
 
 -- Fishing: how many times each repo has been landed, shown on its page and its badge.

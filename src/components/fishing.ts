@@ -6,7 +6,7 @@ import { creatureSrc, tintDeg, traits, depthOf, fmtDepth, type SpeciesId } from 
 type Row = [string, number, string, string?, string?, (SpeciesId | 0)?, (string | 0)?];
 export type Catch = [name: string, stars: number, species: SpeciesId, hue: number, path: string];
 /** Kept in the visitor's logbook: today's casts, and the last few things they landed. */
-export type FishLog = { day: string; used: number; total: number; mine: Catch[]; recent: number[] };
+export type FishLog = { day: string; used: number; total: number; mine: Catch[]; recent: number[]; best?: [name: string, stars: number] };
 export type Landed = { key: string; name: string; stars: number; species: SpeciesId; hue: number; rarity: string; path: string };
 type Target = Landed & { index: number; desc: string; depth: number; url: string; repo: string | null; slug: string | null; missed: boolean };
 type Deps = {
@@ -325,6 +325,7 @@ export function initFishing(d: Deps) {
     fl.total++;
     fl.mine = [[c.name, c.stars, c.species, c.hue, c.path] as Catch, ...fl.mine.filter((m) => m[4] !== c.path)].slice(0, 12);
     fl.recent = [...fl.recent, c.index].slice(-40);
+    if (!fl.best || c.stars >= fl.best[1]) fl.best = [c.name, c.stars];
     d.landed(c);
     d.save();
 

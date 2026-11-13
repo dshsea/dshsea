@@ -1158,38 +1158,46 @@ export async function initOcean3D() {
     el.hidden = false;
   });
 
-  type Score = { name: string; seen: number; species: number; deepest: number };
+  type Score = { name: string; seen: number; species: number; deepest: number; fish: number; fishbest: number; fishname: string };
+  let boardTab = 'dive';
   let lastScoreAt = 0;
-  const myScore = () => ({ id: log.board.id, name: log.board.name, seen: seenCount(), species: speciesCount(), deepest: Math.round(log.deepest), ach: Object.keys(log.ach).length });
+  const myScore = () => ({ id: log.board.id, name: log.board.name, seen: seenCount(), species: speciesCount(), deepest: Math.round(log.deepest), ach: Object.keys(log.ach).length,
+    fish: log.fish.total, fishbest: log.fish.best?.[1] ?? 0, fishname: log.fish.best?.[0] ?? '' });
   function submitScore(force = false) {
     if (!log.board.id || (!force && Date.now() - lastScoreAt < 45000)) return Promise.resolve(null);
     lastScoreAt = Date.now();
     return post('/api/score', myScore()).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   }
   async function renderBoard() {
+    const tab = boardTab, fishTab = tab === 'fish';
+    const sub = $('board-sub');
+    sub.textContent = sub.dataset[tab]!;
+    $('board-you').textContent = '';
     const list = $('board-list');
     list.textContent = t.boardLoading;
     $('board-join').hidden = !!log.board.id;
     const rank = await submitScore(true);
     let rows: Score[];
     try {
-      const res = await fetch('/api/board', { cache: 'no-store' });
+      const res = await fetch(fishTab ? '/api/board?by=fish' : '/api/board', { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
       rows = await res.json();
     } catch {
       list.textContent = t.boardFail;
       return;
     }
-    $('board-you').textContent = rank ? t.boardYou.replace('{n}', String(rank.rank)) : '';
+    if (tab !== boardTab) return; // switched tabs while loading
+    const place = rank ? (fishTab ? rank.fishRank : rank.rank) : 0;
+    $('board-you').textContent = place ? t.boardYou.replace('{n}', String(place)) : '';
     list.replaceChildren(...rows.map((r) => {
       const li = document.createElement('li');
-      li.classList.toggle('me', !!log.board.id && r.name === log.board.name && r.seen === seenCount());
+      li.classList.toggle('me', !!log.board.id && r.name === log.board.name && (fishTab ? r.fish === log.fish.total : r.seen === seenCount()));
       const name = document.createElement('b');
       name.textContent = r.name;
       const seen = document.createElement('span');
-      seen.textContent = `${fmt(r.seen)} ${t.logSeen} · ${r.species}/${SPECIES_IDS.length}`;
+      seen.textContent = fishTab ? t.boardLanded.replace('{n}', fmt(r.fish)) : `${fmt(r.seen)} ${t.logSeen} · ${r.species}/${SPECIES_IDS.length}`;
       const deep = document.createElement('span');
-      deep.textContent = fmtDepth(r.deepest);
+      deep.textContent = fishTab ? t.boardBest.replace('{name}', r.fishname).replace('{stars}', fmt(r.fishbest)) : fmtDepth(r.deepest);
       li.append(name, seen, deep);
       return li;
     }));
@@ -1199,6 +1207,13 @@ export async function initOcean3D() {
   document.querySelector('a[data-board]')?.addEventListener('click', (e) => {
     e.preventDefault();
     openSheet('board-sheet');
+    void renderBoard();
+  });
+  $('board-tabs').addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLElement>('[data-tab]');
+    if (!b) return;
+    boardTab = b.dataset.tab!;
+    for (const x of $('board-tabs').children) x.setAttribute('aria-pressed', String(x === b));
     void renderBoard();
   });
   $<HTMLFormElement>('board-join').addEventListener('submit', async (e) => {

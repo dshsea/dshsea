@@ -101,6 +101,11 @@ async function api(request, env, url) {
     return json({ ok: true });
   }
   if (route === 'GET /api/board') {
+    if (url.searchParams.get('by') === 'fish') {
+      const { results } = await db
+        .prepare('SELECT name, fish, fishbest, fishname FROM scores WHERE hidden = 0 AND fish > 0 ORDER BY fish DESC, fishbest DESC LIMIT 25').all();
+      return json(results, 200, { 'Cache-Control': 'no-store' });
+    }
     const { results } = await db
       .prepare('SELECT name, seen, species, deepest, ach FROM scores WHERE hidden = 0 ORDER BY seen DESC, deepest DESC LIMIT 25').all();
     return json(results, 200, { 'Cache-Control': 'no-store' });
@@ -117,12 +122,16 @@ async function api(request, env, url) {
     }
     // Scores are self-reported, so only sanity limits apply; see README.
     await db.prepare(
-      `INSERT INTO scores (id, name, seen, species, deepest, ach, updated, iph) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-       ON CONFLICT(id) DO UPDATE SET name = ?2, seen = MAX(seen, ?3), species = MAX(species, ?4), deepest = MAX(deepest, ?5), ach = MAX(ach, ?6), updated = ?7, iph = ?8`,
-    ).bind(id, name, int(body.seen, 60000), int(body.species, 24), int(body.deepest, 5e6), int(body.ach, 16), now(), iph).run();
+      `INSERT INTO scores (id, name, seen, species, deepest, ach, updated, iph, fish, fishbest, fishname) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+       ON CONFLICT(id) DO UPDATE SET name = ?2, seen = MAX(seen, ?3), species = MAX(species, ?4), deepest = MAX(deepest, ?5), ach = MAX(ach, ?6), updated = ?7, iph = ?8,
+         fish = MAX(fish, ?9), fishname = CASE WHEN ?10 >= fishbest THEN ?11 ELSE fishname END, fishbest = MAX(fishbest, ?10)`,
+    ).bind(id, name, int(body.seen, 60000), int(body.species, 24), int(body.deepest, 5e6), int(body.ach, 16), now(), iph,
+      int(body.fish, 60000), int(body.fishbest, 1e7), clean(body.fishname, 60)).run();
+    const fishRank = await db
+      .prepare('SELECT CASE WHEN me.fish > 0 THEN (SELECT COUNT(*) + 1 FROM scores s WHERE s.hidden = 0 AND (s.fish > me.fish OR (s.fish = me.fish AND s.fishbest > me.fishbest))) ELSE 0 END AS r FROM scores me WHERE me.id = ?').bind(id).first();
     const rank = await db
       .prepare('SELECT COUNT(*) + 1 AS r FROM scores WHERE hidden = 0 AND seen > (SELECT seen FROM scores WHERE id = ?)').bind(id).first();
-    return json({ ok: true, rank: rank.r });
+    return json({ ok: true, rank: rank.r, fishRank: fishRank?.r ?? 0 });
   }
 
   // ----- fishing: how many times each repo has been landed -----

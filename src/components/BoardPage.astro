@@ -7,12 +7,15 @@ import { SPECIES_IDS } from '../lib/species';
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const t = dict(lang);
-const strings = { you: t.boardYou, empty: t.boardEmpty, err: t.boardErr, fail: t.boardFail, seen: t.logSeen, needDive: t.boardNeedDive, species: SPECIES_IDS.length };
+const strings = { you: t.boardYou, empty: t.boardEmpty, err: t.boardErr, fail: t.boardFail, seen: t.logSeen, needDive: t.boardNeedDive, landed: t.boardLanded, best: t.boardBest, species: SPECIES_IDS.length };
 ---
 <Base lang={lang} path="/board" title={t.boardTitle} description={t.boardSub}>
   <main class="page">
     <h1>{t.boardTitle}</h1>
-    <p class="lede">{t.boardSub} <b id="you"></b></p>
+    <div id="tabs" class="tabs" role="tablist">
+      {['dive', 'fish'].map((id) => <button type="button" role="tab" data-tab={id} aria-pressed={id === 'dive' ? 'true' : 'false'}>{t.boardTabs[id]}</button>)}
+    </div>
+    <p class="lede"><span id="sub" data-dive={t.boardSub} data-fish={t.boardSubFish}>{t.boardSub}</span> <b id="you"></b></p>
     <form id="join" hidden>
       <input name="name" minlength="2" maxlength="20" required placeholder={t.boardName} autocomplete="nickname" />
       <button class="btn">{t.boardJoin}</button>
@@ -27,7 +30,8 @@ const strings = { you: t.boardYou, empty: t.boardEmpty, err: t.boardErr, fail: t
     const $ = (id: string) => document.getElementById(id)!;
     const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
     const depth = (m: number) => (m < 10000 ? `${fmt(m)} m` : `${(m / 1000).toLocaleString('en-US', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km`);
-    type Log = { seen?: Record<string, 1>; species?: Record<string, number>; ach?: Record<string, 1>; deepest?: number; board?: { id: string; name: string } };
+    type Log = { seen?: Record<string, 1>; species?: Record<string, number>; ach?: Record<string, 1>; deepest?: number; board?: { id: string; name: string }; fish?: { total?: number; best?: [string, number] } };
+    let tab = location.hash === '#fish' ? 'fish' : 'dive';
     const read = (): Log => {
       try {
         return JSON.parse(localStorage.getItem(KEY) ?? '{}');
@@ -38,12 +42,16 @@ const strings = { you: t.boardYou, empty: t.boardEmpty, err: t.boardErr, fail: t
     const score = (log: Log) => ({
       id: log.board?.id, name: log.board?.name, seen: Object.keys(log.seen ?? {}).length, species: Object.keys(log.species ?? {}).length,
       deepest: Math.round(log.deepest ?? 0), ach: Object.keys(log.ach ?? {}).length,
+      fish: log.fish?.total ?? 0, fishbest: log.fish?.best?.[1] ?? 0, fishname: log.fish?.best?.[0] ?? '',
     });
     const submit = (log: Log) =>
       fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(score(log)) })
         .then((r) => (r.ok ? r.json() : null)).catch(() => null);
 
     async function render() {
+      const now = tab, fishTab = now === 'fish';
+      for (const b of $('tabs').children) b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.tab === now));
+      $('sub').textContent = $('sub').dataset[now]!;
       const log = read();
       const mine = score(log);
       const joined = !!log.board?.id;
@@ -51,21 +59,24 @@ const strings = { you: t.boardYou, empty: t.boardEmpty, err: t.boardErr, fail: t
       $('join').hidden = joined || mine.seen === 0;
       $('need').hidden = joined || mine.seen > 0;
       const rank = joined ? await submit(log) : null;
-      $('you').textContent = rank ? t.you.replace('{n}', String(rank.rank)) : '';
+      if (now !== tab) return; // switched tabs while loading
+      const place = rank ? (fishTab ? rank.fishRank : rank.rank) : 0;
+      $('you').textContent = place ? t.you.replace('{n}', String(place)) : '';
       const list = $('list');
       try {
-        const res = await fetch('/api/board', { cache: 'no-store' });
+        const res = await fetch(fishTab ? '/api/board?by=fish' : '/api/board', { cache: 'no-store' });
         if (!res.ok) throw new Error();
-        const rows: { name: string; seen: number; species: number; deepest: number }[] = await res.json();
+        const rows: { name: string; seen: number; species: number; deepest: number; fish: number; fishbest: number; fishname: string }[] = await res.json();
+        if (now !== tab) return;
         list.replaceChildren(...rows.map((r) => {
           const li = document.createElement('li');
-          li.classList.toggle('me', joined && r.name === mine.name && r.seen === mine.seen);
+          li.classList.toggle('me', joined && r.name === mine.name && (fishTab ? r.fish === mine.fish : r.seen === mine.seen));
           const name = document.createElement('b');
           name.textContent = r.name;
           const seen = document.createElement('span');
-          seen.textContent = `${fmt(r.seen)} ${t.seen} · ${r.species}/${t.species}`;
+          seen.textContent = fishTab ? t.landed.replace('{n}', fmt(r.fish)) : `${fmt(r.seen)} ${t.seen} · ${r.species}/${t.species}`;
           const deep = document.createElement('span');
-          deep.textContent = depth(r.deepest);
+          deep.textContent = fishTab ? t.best.replace('{name}', r.fishname).replace('{stars}', fmt(r.fishbest)) : depth(r.deepest);
           li.append(name, seen, deep);
           return li;
         }));
@@ -88,12 +99,22 @@ const strings = { you: t.boardYou, empty: t.boardEmpty, err: t.boardErr, fail: t
       localStorage.setItem(KEY, JSON.stringify(log));
       void render();
     });
+    $('tabs').addEventListener('click', (e) => {
+      const b = (e.target as Element).closest<HTMLElement>('[data-tab]');
+      if (!b) return;
+      tab = b.dataset.tab!;
+      history.replaceState(null, '', tab === 'fish' ? '#fish' : location.pathname);
+      void render();
+    });
     void render();
   </script>
 </Base>
 
 <style>
   #you { color: var(--glow); font-weight: 600; }
+  .tabs { display: flex; gap: 8px; margin: 0 0 16px; }
+  .tabs button { font: 500 14px var(--body); color: var(--text); cursor: pointer; padding: 9px 18px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line-strong); }
+  .tabs button[aria-pressed='true'] { color: #03131f; background: var(--glow); border-color: var(--glow); }
   form { display: flex; gap: 10px; max-width: 460px; margin-bottom: 22px; }
   input { flex: 1; min-width: 0; font: 16px var(--body); color: var(--text); background: rgba(8, 18, 42, 0.6); border: 1px solid var(--line-strong); border-radius: 999px; padding: 11px 20px; outline: none; }
   input:focus { border-color: var(--glow); }
