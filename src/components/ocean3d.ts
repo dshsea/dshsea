@@ -1509,7 +1509,7 @@ export async function initOcean3D() {
   sonar.addEventListener('focus', () => void loadNames().then(search));
 
   // ----- fishing (fishing.ts): a catch counts as a discovery -----
-  initFishing({
+  const fishing = initFishing({
     t, base: payload.base, count, chunk: CHUNK, log: log.fish,
     claimed: Object.values(payload.claimed), giants: payload.meta.landmarks.map(([i]) => i),
     save: () => (logDirty = true),
@@ -1569,6 +1569,12 @@ export async function initOcean3D() {
       if (i >= 0) jump(i);
     });
   } else if (params.has('d')) teleport(Number(params.get('d')) || 0);
+  // The Fish link in the top bar opens the panel in place; from other pages it arrives as /?fish.
+  document.querySelector('a[data-fish]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    fishing.open();
+  });
+  if (params.has('fish')) fishing.open();
 
   document.body.classList.add('ocean-3d');
   requestAnimationFrame(frame);

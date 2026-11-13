@@ -71,6 +71,7 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
       <a class="logo" href={href(lang, '/')}>dsh<i>sea</i></a>
       <slot name="bar" />
       <nav>
+        <a href={`${href(lang, '/')}?fish`} data-fish>{t.fish.btn}</a>
         <a href={href(lang, '/board')} data-board>{t.navBoard}</a>
         <a href="/u">{t.navMe}</a>
         <a href={href(lang, '/list')}>{t.navList}</a>
