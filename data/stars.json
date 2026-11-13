@@ -1,166 +1,166 @@
 {
-  "deepseek-ai/deepseek-harness": {
-    "stars": 279543,
-    "created": "2026-08-13"
-  },
-  "nexu-io/open-design": {
-    "stars": 107315,
-    "created": "2026-04-28"
-  },
-  "tt-a1i/archify": {
-    "stars": 95818,
-    "created": "2026-04-15"
-  },
-  "alchaincyf/nuwa-skill": {
-    "stars": 38125,
-    "created": "2026-04-05"
-  },
-  "esengine/DeepSeek-Reasonix": {
-    "stars": 36155,
-    "created": "2026-04-21"
-  },
-  "anywhere-labs/dsh-desktop": {
-    "stars": 35832,
-    "created": "2026-08-13"
-  },
-  "alchaincyf/huashu-design": {
-    "stars": 29328,
-    "created": "2026-04-19"
-  },
-  "titanwings/distilly": {
-    "stars": 26537,
-    "created": "2026-03-30"
-  },
-  "awesome-dsh-plugin/awesome-dsh-plugin": {
-    "stars": 24412,
-    "created": "2026-08-13"
-  },
-  "walkinglabs/learn-harness-engineering": {
-    "stars": 24359,
-    "created": "2026-03-29"
-  },
-  "ccch1mneyyy/dsh-Go": {
-    "stars": 20407,
-    "created": "2026-10-25"
-  },
-  "dataelement/dsh-desktop": {
-    "stars": 18398,
-    "created": "2026-08-13"
-  },
-  "EverMind-AI/EverOS": {
-    "stars": 13892,
-    "created": "2025-10-28"
-  },
-  "MemTensor/MemOS": {
-    "stars": 12370,
-    "created": "2025-07-06"
-  },
-  "dsh-market/dsh-market": {
-    "stars": 12132,
-    "created": "2026-08-14"
-  },
-  "zhu1090093659/dsh-web": {
-    "stars": 10375,
-    "created": "2026-08-12"
-  },
-  "Tencent/BrowserSkill": {
-    "stars": 10344,
-    "created": "2026-06-22"
-  },
-  "anbeime/skill": {
-    "stars": 9477,
-    "created": "2026-02-02"
-  },
-  "ccch1mneyyy/dsh-TUI": {
-    "stars": 7578,
-    "created": "2026-08-13"
-  },
-  "MeteorNOX/DeepSeek-Balance-Whale-Widget": {
-    "stars": 7168,
-    "created": "2026-08-18"
-  },
-  "Fei2411/DS-Bot": {
-    "stars": 7128,
-    "created": "2026-10-07"
-  },
-  "yjh051108/dsh-routing-suite": {
-    "stars": 7015,
-    "created": "2026-08-14"
-  },
-  "elysia395/dsh-wallpaper-engine": {
-    "stars": 6596,
-    "created": "2026-08-16"
-  },
-  "JimLiu/baoyu-design": {
-    "stars": 6396,
-    "created": "2026-06-07"
-  },
-  "Q00/ouroboros": {
-    "stars": 6356,
-    "created": "2026-01-14"
-  },
-  "PC2005-cloud/dsh-pet": {
-    "stars": 6155,
-    "created": "2026-08-14"
-  },
-  "T-Auto/dsh-ops": {
-    "stars": 5748,
-    "created": "2026-10-08"
-  },
-  "omdsh-dev/DSH-better-sidebar": {
-    "stars": 5112,
-    "created": "2026-08-07"
-  },
-  "bowenliang123/dsh-context": {
-    "stars": 5001,
-    "created": "2026-08-14"
-  },
-  "liustack/modlens": {
-    "stars": 4930,
-    "created": "2026-02-22"
-  },
-  "crafter-station/petdex": {
-    "stars": 4359,
-    "created": "2026-05-02"
-  },
-  "foryourhealth111-pixel/Vibe-Skills": {
-    "stars": 3816,
-    "created": "2026-02-22"
-  },
-  "volcengine/OpenViking": {
-    "stars": 42066,
-    "created": "2026-01-05"
-  },
-  "lingfengQAQ/webnovel-writer": {
-    "stars": 7939,
-    "created": "2026-01-02"
-  },
-  "whiteguo233/OpenBiliClaw": {
-    "stars": 3745,
-    "created": "2026-03-07"
+  "0xsline/awesome-deepseek-harness": {
+    "stars": 1361,
+    "created": "2026-08-11"
   },
   "42ch-dev/dsh-rust-sdk": {
     "stars": 11,
     "created": "2026-08-16"
   },
-  "openma-ai/deepseek-harness-acp": {
-    "stars": 65,
+  "alchaincyf/huashu-design": {
+    "stars": 29401,
+    "created": "2026-04-19"
+  },
+  "alchaincyf/nuwa-skill": {
+    "stars": 38201,
+    "created": "2026-04-05"
+  },
+  "anbeime/skill": {
+    "stars": 9513,
+    "created": "2026-02-02"
+  },
+  "anywhere-labs/dsh-desktop": {
+    "stars": 35909,
     "created": "2026-08-13"
   },
-  "soolaugust/deepseek-harness-cli": {
-    "stars": 7,
+  "awesome-dsh-plugin/awesome-dsh-plugin": {
+    "stars": 24527,
+    "created": "2026-08-13"
+  },
+  "bowenliang123/dsh-context": {
+    "stars": 5037,
     "created": "2026-08-14"
   },
-  "0xsline/awesome-deepseek-harness": {
-    "stars": 1353,
-    "created": "2026-08-11"
+  "ccch1mneyyy/dsh-Go": {
+    "stars": 21366,
+    "created": "2026-10-25"
+  },
+  "ccch1mneyyy/dsh-TUI": {
+    "stars": 7637,
+    "created": "2026-08-13"
+  },
+  "crafter-station/petdex": {
+    "stars": 4362,
+    "created": "2026-05-02"
+  },
+  "dataelement/dsh-desktop": {
+    "stars": 18618,
+    "created": "2026-08-13"
+  },
+  "deepseek-ai/deepseek-harness": {
+    "stars": 280214,
+    "created": "2026-08-13"
+  },
+  "dsh-market/dsh-market": {
+    "stars": 12264,
+    "created": "2026-08-14"
+  },
+  "elysia395/dsh-wallpaper-engine": {
+    "stars": 6718,
+    "created": "2026-08-16"
+  },
+  "esengine/DeepSeek-Reasonix": {
+    "stars": 36145,
+    "created": "2026-04-21"
+  },
+  "EverMind-AI/EverOS": {
+    "stars": 13897,
+    "created": "2025-10-28"
+  },
+  "Fei2411/DS-Bot": {
+    "stars": 7506,
+    "created": "2026-10-07"
+  },
+  "foryourhealth111-pixel/Vibe-Skills": {
+    "stars": 3816,
+    "created": "2026-02-22"
   },
   "imsai-sh/awesome-deepseek-harness-plugins": {
     "stars": 392,
     "created": "2026-08-14"
   },
+  "JimLiu/baoyu-design": {
+    "stars": 6417,
+    "created": "2026-06-07"
+  },
+  "lingfengQAQ/webnovel-writer": {
+    "stars": 7953,
+    "created": "2026-01-02"
+  },
+  "liustack/modlens": {
+    "stars": 4950,
+    "created": "2026-02-22"
+  },
+  "MemTensor/MemOS": {
+    "stars": 12382,
+    "created": "2025-07-06"
+  },
+  "MeteorNOX/DeepSeek-Balance-Whale-Widget": {
+    "stars": 7191,
+    "created": "2026-08-18"
+  },
+  "nexu-io/open-design": {
+    "stars": 107456,
+    "created": "2026-04-28"
+  },
+  "omdsh-dev/DSH-better-sidebar": {
+    "stars": 5137,
+    "created": "2026-08-07"
+  },
+  "openma-ai/deepseek-harness-acp": {
+    "stars": 65,
+    "created": "2026-08-13"
+  },
+  "PC2005-cloud/dsh-pet": {
+    "stars": 6209,
+    "created": "2026-08-14"
+  },
+  "Q00/ouroboros": {
+    "stars": 6358,
+    "created": "2026-01-14"
+  },
+  "soolaugust/deepseek-harness-cli": {
+    "stars": 7,
+    "created": "2026-08-14"
+  },
+  "T-Auto/dsh-ops": {
+    "stars": 5783,
+    "created": "2026-10-08"
+  },
+  "Tencent/BrowserSkill": {
+    "stars": 10369,
+    "created": "2026-06-22"
+  },
+  "titanwings/distilly": {
+    "stars": 26552,
+    "created": "2026-03-30"
+  },
+  "tt-a1i/archify": {
+    "stars": 96092,
+    "created": "2026-04-15"
+  },
   "vbarter/dsh-plugin-registry": {
     "stars": 2,
     "created": "2026-08-15"
+  },
+  "volcengine/OpenViking": {
+    "stars": 42163,
+    "created": "2026-01-05"
+  },
+  "walkinglabs/learn-harness-engineering": {
+    "stars": 24437,
+    "created": "2026-03-29"
+  },
+  "whiteguo233/OpenBiliClaw": {
+    "stars": 3750,
+    "created": "2026-03-07"
+  },
+  "yjh051108/dsh-routing-suite": {
+    "stars": 7017,
+    "created": "2026-08-14"
+  },
+  "zhu1090093659/dsh-web": {
+    "stars": 10390,
+    "created": "2026-08-12"
   }
 }
