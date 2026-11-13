@@ -21,6 +21,14 @@
 
 海里还有**钓鱼**（按需求选饵、抛竿、收线，钓上来一个可安装的插件；每个仓库页都显示它被钓起过多少次）、**许愿瓶**（许愿一个还不存在的插件，给别人的愿望投票，看[最想要的插件](https://dshsea.com/zh/wishes)）和**拍照模式**（按 `P`），把眼前的画面变成带说明的图片。
 
+## 在 dsh 里钓鱼
+
+这片海也是一个 dsh 插件：让 agent 按你的需求去钓，它会钓上来几个可安装的插件，并给出安装命令。见 [plugin/](plugin/)。
+
+```sh
+dsh plugin --profile tui add "github:dshsea/dshsea#path:/plugin"
+```
+
 ## 生物从哪来
 
 - **野生生物。** 每周一次的 GitHub Action 会把所有带 `dsh-plugin` topic 的仓库抓进 `data/wild.json`，它们会自动出现在海里。

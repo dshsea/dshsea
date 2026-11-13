@@ -21,6 +21,14 @@ Every DeepSeek Harness plugin is a creature somewhere in a bottomless ocean: mor
 
 Also in the water: **fishing** (pick a bait for what you need, cast, and reel in one installable plugin; every repo page shows how often it has been hooked), **wish bottles** (wish for a plugin that does not exist yet, vote on other people's, and see the [most wanted](https://dshsea.com/wishes)), and a **photo mode** (`P`) that turns what you see into a captioned picture.
 
+## Fish from inside dsh
+
+The ocean also comes as a dsh plugin: ask the agent to fish for what you need and it brings up a few installable plugins, with install commands. See [plugin/](plugin/).
+
+```sh
+dsh plugin --profile tui add "github:dshsea/dshsea#path:/plugin"
+```
+
 ## How it fills up
 
 - **Wild creatures.** A weekly GitHub Action crawls every repo tagged `dsh-plugin` into `data/wild.json`. They all appear in the ocean automatically.
