@@ -65,8 +65,10 @@ async function api(request, env, url) {
   const route = `${request.method} ${url.pathname}`;
   let body = {};
   if (request.method === 'POST') {
-    // Only the site itself may write.
-    if (request.headers.get('Origin') !== url.origin) return json({ error: 'forbidden' }, 403);
+    // Only the site itself may write. The one exception is the dsh fishing plugin (plugin/), which
+    // may report a catch from a terminal; the same per-visitor limits apply to it.
+    const fromPlugin = url.pathname === '/api/catch' && request.headers.get('X-Dshsea-Client') === 'fish-plugin';
+    if (request.headers.get('Origin') !== url.origin && !fromPlugin) return json({ error: 'forbidden' }, 403);
     try {
       body = await request.json();
     } catch {

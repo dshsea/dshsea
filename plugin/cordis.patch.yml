@@ -1,0 +1,5 @@
+# dshsea-fish bundle patch: adds the plugin to the profile. It registers one model-facing tool,
+# `dshsea_fish`, and a short system-prompt section saying when to use it.
+- insert:
+    - id: dshsea-fish
+      name: 'dshsea-fish'
