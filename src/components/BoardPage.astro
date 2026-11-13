@@ -1,0 +1,111 @@
+---
+// The leaderboard as a page of its own. On the home page the same link opens it as a panel instead.
+import Base from '../layouts/Base.astro';
+import { dict, href, type Lang } from '../lib/i18n';
+import { SPECIES_IDS } from '../lib/species';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = dict(lang);
+const strings = { you: t.boardYou, empty: t.boardEmpty, err: t.boardErr, fail: t.boardFail, seen: t.logSeen, needDive: t.boardNeedDive, species: SPECIES_IDS.length };
+---
+<Base lang={lang} path="/board" title={t.boardTitle} description={t.boardSub}>
+  <main class="page">
+    <h1>{t.boardTitle}</h1>
+    <p class="lede">{t.boardSub} <b id="you"></b></p>
+    <form id="join" hidden>
+      <input name="name" minlength="2" maxlength="20" required placeholder={t.boardName} autocomplete="nickname" />
+      <button class="btn">{t.boardJoin}</button>
+    </form>
+    <p id="need" class="need" hidden>{t.boardNeedDive} <a href={href(lang, '/')}>{t.boardDive} →</a></p>
+    <ol id="list"><li class="note">{t.boardLoading}</li></ol>
+  </main>
+  <script type="application/json" id="board-strings" set:html={JSON.stringify(strings)} />
+  <script>
+    const t = JSON.parse(document.getElementById('board-strings')!.textContent!);
+    const KEY = 'dshsea-log-v1'; // the logbook kept by the ocean (src/components/ocean3d.ts)
+    const $ = (id: string) => document.getElementById(id)!;
+    const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+    const depth = (m: number) => (m < 10000 ? `${fmt(m)} m` : `${(m / 1000).toLocaleString('en-US', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km`);
+    type Log = { seen?: Record<string, 1>; species?: Record<string, number>; ach?: Record<string, 1>; deepest?: number; board?: { id: string; name: string } };
+    const read = (): Log => {
+      try {
+        return JSON.parse(localStorage.getItem(KEY) ?? '{}');
+      } catch {
+        return {};
+      }
+    };
+    const score = (log: Log) => ({
+      id: log.board?.id, name: log.board?.name, seen: Object.keys(log.seen ?? {}).length, species: Object.keys(log.species ?? {}).length,
+      deepest: Math.round(log.deepest ?? 0), ach: Object.keys(log.ach ?? {}).length,
+    });
+    const submit = (log: Log) =>
+      fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(score(log)) })
+        .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+    async function render() {
+      const log = read();
+      const mine = score(log);
+      const joined = !!log.board?.id;
+      // Nothing to rank until the visitor has been diving.
+      $('join').hidden = joined || mine.seen === 0;
+      $('need').hidden = joined || mine.seen > 0;
+      const rank = joined ? await submit(log) : null;
+      $('you').textContent = rank ? t.you.replace('{n}', String(rank.rank)) : '';
+      const list = $('list');
+      try {
+        const res = await fetch('/api/board', { cache: 'no-store' });
+        if (!res.ok) throw new Error();
+        const rows: { name: string; seen: number; species: number; deepest: number }[] = await res.json();
+        list.replaceChildren(...rows.map((r) => {
+          const li = document.createElement('li');
+          li.classList.toggle('me', joined && r.name === mine.name && r.seen === mine.seen);
+          const name = document.createElement('b');
+          name.textContent = r.name;
+          const seen = document.createElement('span');
+          seen.textContent = `${fmt(r.seen)} ${t.seen} · ${r.species}/${t.species}`;
+          const deep = document.createElement('span');
+          deep.textContent = depth(r.deepest);
+          li.append(name, seen, deep);
+          return li;
+        }));
+        if (!rows.length) list.innerHTML = `<li class="note">${t.empty}</li>`;
+      } catch {
+        list.innerHTML = `<li class="note">${t.fail}</li>`;
+      }
+    }
+    $('join').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = (e.currentTarget as HTMLFormElement).elements.namedItem('name') as HTMLInputElement;
+      const log = read();
+      log.board = { id: crypto.randomUUID(), name: input.value.trim() };
+      if (!(await submit(log))) {
+        input.setCustomValidity(t.err);
+        input.reportValidity();
+        input.setCustomValidity('');
+        return;
+      }
+      localStorage.setItem(KEY, JSON.stringify(log));
+      void render();
+    });
+    void render();
+  </script>
+</Base>
+
+<style>
+  #you { color: var(--glow); font-weight: 600; }
+  form { display: flex; gap: 10px; max-width: 460px; margin-bottom: 22px; }
+  input { flex: 1; min-width: 0; font: 16px var(--body); color: var(--text); background: rgba(8, 18, 42, 0.6); border: 1px solid var(--line-strong); border-radius: 999px; padding: 11px 20px; outline: none; }
+  input:focus { border-color: var(--glow); }
+  .need { color: var(--gold); margin: 0 0 22px; }
+  .need a { color: var(--glow); text-underline-offset: 3px; }
+  ol { margin: 0; padding: 0; list-style: none; counter-reset: rank; display: grid; gap: 6px; max-width: 760px; }
+  ol :global(li) { counter-increment: rank; display: grid; grid-template-columns: 40px 1fr auto auto; gap: 16px; align-items: center; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--dim); font-variant-numeric: tabular-nums; }
+  ol :global(li)::before { content: counter(rank); font-family: var(--display); font-size: 24px; line-height: 1; color: var(--dim); }
+  ol :global(li:nth-child(-n + 3))::before { color: var(--gold); }
+  ol :global(li b) { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  ol :global(li.me) { border-color: rgba(110, 243, 214, 0.6); background: rgba(110, 243, 214, 0.08); }
+  ol :global(li.note) { display: block; }
+  ol :global(li.note)::before { content: none; }
+  @media (max-width: 560px) { ol :global(li) { grid-template-columns: 28px 1fr auto; } ol :global(li span:last-child) { display: none; } }
+</style>

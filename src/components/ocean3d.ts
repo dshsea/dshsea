@@ -1193,7 +1193,9 @@ export async function initOcean3D() {
     }));
     if (!rows.length) list.textContent = t.boardEmpty;
   }
-  $('board-btn').addEventListener('click', () => {
+  // The Leaderboard link in the top bar opens the panel in place, so a dive is not interrupted.
+  document.querySelector('a[data-board]')?.addEventListener('click', (e) => {
+    e.preventDefault();
     openSheet('board-sheet');
     void renderBoard();
   });

@@ -63,6 +63,7 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
       <a class="logo" href={href(lang, '/')}>dsh<i>sea</i></a>
       <slot name="bar" />
       <nav>
+        <a href={href(lang, '/board')} data-board>{t.navBoard}</a>
         <a href="/u">{t.navMe}</a>
         <a href={href(lang, '/list')}>{t.navList}</a>
         <a class="cta" href={href(lang, '/submit')}>{t.navSubmit}</a>
@@ -139,6 +140,7 @@ const other: Lang = lang === 'en' ? 'zh' : 'en';
     .topbar { gap: 10px; padding: 10px 14px; flex-wrap: wrap; }
     .topbar nav { gap: 14px; font-size: 13px; }
     .topbar nav a[aria-label='GitHub'] { display: none; }
+    .topbar nav { gap: 11px; }
   }
 
   .btn {
