@@ -1,29 +1,55 @@
 {
   "name": "dshsea-fish",
-  "version": "0.1.0",
-  "description": "Go fishing for DeepSeek Harness plugins. Tell the agent what you need; it casts into dshsea.com, an ocean of 30,000+ dsh plugins, and reels in a few installable ones that fit. It recommends and shows the install command; it never installs anything itself.",
+  "version": "0.2.0",
+  "description": "Go fishing for DeepSeek Harness plugins. A fishing panel in the dsh client (pick a bait, cast, reel in an installable plugin) plus a tool the agent can use to find plugins for you, both backed by dshsea.com, an ocean of 30,000+ dsh plugins. It recommends and shows the install command; it never installs anything itself.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
+    "./client": "./client/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
-  "files": ["lib", "cordis.patch.yml", "README.md", "LICENSE"],
-  "keywords": ["deepseek-harness", "dsh", "dsh-plugin", "plugin-discovery", "plugin-search", "dshsea", "fishing"],
+  "files": [
+    "lib",
+    "client",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "plugin-discovery",
+    "plugin-search",
+    "dshsea",
+    "fishing"
+  ],
   "author": "dshsea",
   "license": "MIT",
   "homepage": "https://dshsea.com",
-  "repository": { "type": "git", "url": "git+https://github.com/dshsea/dshsea.git", "directory": "plugin" },
-  "engines": { "node": ">=22" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dshsea/dshsea.git",
+    "directory": "plugin"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "check": "node --check lib/index.js",
+    "check": "node --check lib/index.js && node --check client/client.js",
     "selftest": "node tools/selftest.mjs"
   },
   "dsh": {
     "category": "extension",
     "displayName": "dshsea fishing",
-    "bundle": { "patch": "./cordis.patch.yml" }
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
   },
   "peerDependencies": {
     "@deepseek-ai/dsh": ">=0.1.7"

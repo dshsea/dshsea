@@ -73,7 +73,20 @@ const fmtDepth = (index) => {
   const m = 260 + index * 32
   return m < 10000 ? `${m.toLocaleString('en-US')} m` : `${(m / 1000).toFixed(1)} km`
 }
-const installCommand = (repo) => `dsh plugin --profile tui add github:${repo}`
+/** The profile this dsh was started with, for install commands. A guess when it cannot be read. */
+function profileName() {
+  // A profile-installed plugin lives in <DSH_HOME>/profiles/<name>/node_modules/, which names it.
+  const here = /[\\/]profiles[\\/]([\w-]+)[\\/]node_modules[\\/]/.exec(decodeURIComponent(import.meta.url))
+  if (here) return here[1]
+  const argv = process.argv
+  const at = argv.indexOf('--profile')
+  if (at >= 0 && /^[\w-]+$/.test(argv[at + 1] ?? '')) return argv[at + 1]
+  // `dsh web`: the profile is the first argument.
+  if (/^[a-z][\w-]*$/.test(argv[2] ?? '') && argv[2] !== 'plugin') return argv[2]
+  if (process.env.DSH_PROFILE && /^[\w-]+$/.test(process.env.DSH_PROFILE)) return process.env.DSH_PROFILE
+  return process.versions.electron ? 'desktop' : 'tui'
+}
+const installCommand = (repo) => `dsh plugin --profile ${profileName()} add github:${repo}`
 
 /**
  * Casts: returns up to `count` installable plugins matching the bait, each with what the agent
@@ -126,6 +139,8 @@ export async function cast(bait, count, seen, signal) {
       stars: row[1],
       species: page.SPECIES_NAME ?? 'Fish',
       rarity: page.RARITY_NAME ?? 'Common',
+      // For the fishing panel only (client/client.js): which picture to show, and how to tint it.
+      art: { species: page.SPECIES ?? 'fish', rarity: page.RARITY ?? 'common', tint: Number(page.TINT) || 0 },
       depth: fmtDepth(index),
       page: page.P ? `${SITE}/p/${page.P}` : `${SITE}/r/${key}`,
       github: `https://github.com/${repo}`,
@@ -250,10 +265,54 @@ export function apply(ctx) {
             catches: [],
           }
         }
-        return { message: renderCatches(bait, catches), catches }
+        // `art` is for the panel; the tool's output schema does not carry it.
+        return { message: renderCatches(bait, catches), catches: catches.map(({ art, ...c }) => c) }
       },
     }
     ctx.effect(() => tools.register(tool), 'dshsea-fish: dshsea_fish tool')
+  })
+
+  // ----- routes for the fishing panel (client/client.js) -----
+  // The panel runs in the dsh client, which should not have to reach another origin itself, so it
+  // asks this half to cast, to report a landed catch, and to fetch creature pictures.
+  ctx.inject(['webServer'], (hostCtx) => {
+    const server = hostCtx.get ? hostCtx.get('webServer') : hostCtx.webServer
+    if (server === undefined || server === null || typeof server.register !== 'function') return
+    const send = (response, status, body, type = 'application/json; charset=utf-8') => {
+      try {
+        response.writeHead(status, { 'content-type': type, 'cache-control': type.startsWith('image/') ? 'max-age=86400' : 'no-store' })
+        response.end(body)
+      } catch {
+        /* the client went away */
+      }
+    }
+    const route = (path, handler) =>
+      hostCtx.effect(
+        () =>
+          server.register({
+            kind: 'exact',
+            path,
+            handler: (request, response) => {
+              if (request?.method && request.method !== 'GET') return send(response, 405, '{"error":"GET only"}')
+              const query = new URL(request?.url ?? path, 'http://localhost').searchParams
+              Promise.resolve(handler(query, response)).catch((e) => send(response, 502, JSON.stringify({ error: String(e?.message ?? e) })))
+            },
+          }),
+        `dshsea-fish: ${path}`,
+      )
+    route('/dshsea-fish/cast', async (query, response) => {
+      if (seen.size > 400) seen.clear()
+      const result = await cast((query.get('bait') ?? '').trim().slice(0, 120), 1, seen)
+      send(response, 200, JSON.stringify({ ...result, profile: profileName() }))
+    })
+    route('/dshsea-fish/land', async (query, response) => send(response, 200, JSON.stringify(await land(query.get('repo') ?? ''))))
+    route('/dshsea-fish/creature', async (query, response) => {
+      const species = query.get('s') ?? ''
+      if (!/^[a-z]{2,20}$/.test(species)) return send(response, 400, '{"error":"bad species"}')
+      const res = await fetch(`${SITE}/creatures/${species}.webp`, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+      if (!res.ok) return send(response, 404, '{"error":"not found"}')
+      send(response, 200, Buffer.from(await res.arrayBuffer()), 'image/webp')
+    })
   })
 
   ctx.inject(['systemPrompt'], (promptCtx) => {
