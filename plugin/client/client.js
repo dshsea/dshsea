@@ -1,11 +1,15 @@
 // dshsea-fish, client half: the fishing panel.
 //
-// A small round button sits at the edge of the dsh client. It opens a panel where you pick a bait
-// (what you need), cast, strike when something bites, and reel it in without snapping the line.
-// What you land is a real, installable DeepSeek Harness plugin, shown with its install command.
+// A small round button sits at the edge of the dsh client. It opens a panel where you say what you
+// need (the bait) and cast. Everything that takes the bait is listed at once, best match first:
+// real, installable DeepSeek Harness plugins, each with its install command and repository. Finding
+// the plugin is the point, so nothing stands between the cast and the list.
+//
+// The fishing game is the optional part: "lucky cast" hooks one of the listed fish at random and
+// you reel it in by hand. It changes nothing about what you can find.
 //
 // The panel never talks to another origin: it asks the host half (lib/index.js) through three
-// routes, /dshsea-fish/cast, /land and /creature. Nothing is installed from here; the install
+// routes, /dshsea-fish/search, /land and /creature. Nothing is installed from here; the install
 // command is copied to the clipboard for the user to run.
 
 window.__ModuleLoader__.load({
@@ -14,25 +18,25 @@ window.__ModuleLoader__.load({
     const zh = (navigator.language || '').toLowerCase().startsWith('zh')
     const T = zh
       ? {
-          open: '去钓鱼', title: '去钓鱼', sub: '按你的需求选饵，钓上来一个能装的 dsh 插件。',
+          open: '去钓鱼', title: '去钓鱼', sub: '说出你的需求当饵，抛竿，看看哪些 dsh 插件咬钩。',
           baits: [['', '随便来点'], ['code review', '代码审查'], ['test', '测试'], ['git commit release', 'Git 与发版'], ['docs markdown', '文档写作'], ['sql database', '数据与 SQL'],
             ['frontend react ui', '前端'], ['docker deploy', '运维部署'], ['security', '安全'], ['agent workflow', 'Agent 与工作流'], ['game fun', '纯属好玩']],
-          custom: '或者自己配饵：输入关键词…', cast: '抛竿', waiting: '线已经放下去了，等着……', waitBtn: '等待中…', bite: '咬钩了！快提竿！', strike: '提竿！',
+          custom: '你需要什么？例如：sql 迁移审查', cast: '抛竿', casting: '线放下去了……', bites: '{n} 条鱼咬了「{q}」', bitesAny: '随手一竿，捞上来 {n} 条', more: '再捞一些', lucky: '手气一竿', luckyTip: '从这批鱼里随机钓一条，自己收线', waiting: '线已经放下去了，等着……', waitBtn: '等待中…', bite: '咬钩了！快提竿！', strike: '提竿！',
           reelHint: '按住收线。线快绷断时松手，它挣扎时也要松一松。', reel: '按住收线', tension: '鱼线张力',
           lost: { slow: '慢了一步，它吃完饵走了。', snap: '线断了。', away: '它吐掉钩子跑了。' }, teaser: '那是一只{rarity}的{species}。',
-          none: '这片海里还没有鱼吃「{q}」这个饵。', wish: '去许愿', fail: '线空着回来了：{e}', again: '再来一竿', back: '换个饵',
-          hooked: '已被潜水员钓起 {n} 次', install: '安装命令', copy: '复制', copied: '已复制', restart: '装完重启 dsh 生效。这是未经审核的社区插件，装之前先看看仓库。',
+          none: '这片海里还没有鱼吃「{q}」这个饵。', noneTip: '换几个关键词试试，中英文都可以。真的没有的话，可以去许个愿。', wish: '去许愿', fail: '线空着回来了：{e}', again: '再来一竿', back: '回到列表',
+          hooked: '已被潜水员钓起 {n} 次', install: '安装命令', copy: '复制安装命令', copied: '已复制，粘贴到终端执行', restart: '装完重启 dsh 生效。这些是未经审核的社区插件，装之前先看看仓库。',
           github: 'GitHub ↗', page: 'dshsea 页面 ↗', from: '来自 {depth} 深处',
         }
       : {
-          open: 'Go fishing', title: 'Go fishing', sub: 'Pick a bait for what you need and reel in an installable dsh plugin.',
+          open: 'Go fishing', title: 'Go fishing', sub: 'Say what you need as bait, cast, and see which dsh plugins bite.',
           baits: [['', 'Surprise me'], ['code review', 'Code review'], ['test', 'Testing'], ['git commit release', 'Git & releases'], ['docs markdown', 'Docs & writing'], ['sql database', 'Data & SQL'],
             ['frontend react ui', 'Frontend'], ['docker deploy', 'DevOps'], ['security', 'Security'], ['agent workflow', 'Agents & workflows'], ['game fun', 'Just for fun']],
-          custom: 'Or type your own bait: a few keywords…', cast: 'Cast', waiting: 'Line is out. Wait for it…', waitBtn: 'Waiting…', bite: 'A bite! Strike now!', strike: 'Strike!',
+          custom: 'What do you need? e.g. sql migration review', cast: 'Cast', casting: 'Line is out…', bites: '{n} took the bait “{q}”', bitesAny: 'A blind cast brought up {n}', more: 'Bring up more', lucky: 'Lucky cast', luckyTip: 'Hook one of these at random and reel it in yourself', waiting: 'Line is out. Wait for it…', waitBtn: 'Waiting…', bite: 'A bite! Strike now!', strike: 'Strike!',
           reelHint: 'Hold to reel in. Let go before the line snaps, and ease off when it thrashes.', reel: 'Hold to reel', tension: 'Line tension',
           lost: { slow: 'Too slow. It took the bait and left.', snap: 'The line snapped.', away: 'It spat the hook and got away.' }, teaser: 'It was a {rarity} {species}.',
-          none: 'No fish in this sea takes “{q}” yet.', wish: 'Wish for it', fail: 'The line came back empty: {e}', again: 'Cast again', back: 'Change bait',
-          hooked: 'Hooked by divers: {n}×', install: 'Install command', copy: 'Copy', copied: 'Copied', restart: 'Restart dsh after installing. This is an unreviewed community plugin: look at the repository first.',
+          none: 'No fish in this sea takes “{q}” yet.', noneTip: 'Try other keywords, in English or Chinese. If it really does not exist, wish for it.', wish: 'Wish for it', fail: 'The line came back empty: {e}', again: 'Cast again', back: 'Back to the list',
+          hooked: 'Hooked by divers: {n}×', install: 'Install command', copy: 'Copy install command', copied: 'Copied: paste it in a terminal', restart: 'Restart dsh after installing. These are unreviewed community plugins: look at the repository first.',
           github: 'GitHub ↗', page: 'dshsea page ↗', from: 'from {depth} down',
         }
 
@@ -40,7 +44,7 @@ window.__ModuleLoader__.load({
       .dsf-fab{position:fixed;right:18px;bottom:108px;z-index:2147483000;width:44px;height:44px;border-radius:50%;border:1px solid rgba(110,243,214,.5);cursor:pointer;
         background:linear-gradient(160deg,#0d3f7c,#04102a);color:#6ef3d6;box-shadow:0 8px 24px rgba(0,0,0,.35);display:grid;place-items:center;transition:transform .2s}
       .dsf-fab:hover{transform:scale(1.08)}
-      .dsf-panel{position:fixed;right:18px;bottom:162px;z-index:2147483001;width:min(400px,calc(100vw - 24px));max-height:calc(100vh - 190px);overflow:auto;
+      .dsf-panel{position:fixed;right:18px;bottom:162px;z-index:2147483001;width:min(460px,calc(100vw - 24px));max-height:calc(100vh - 190px);overflow:auto;
         background:#081229;color:#eaf2ff;border:1px solid rgba(170,205,255,.28);border-radius:20px;padding:20px;box-shadow:0 30px 80px rgba(0,0,0,.55);
         font:14px/1.5 Inter,system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;animation:dsf-in .25s ease-out}
       @keyframes dsf-in{from{opacity:0;transform:translateY(10px)}}
@@ -104,6 +108,19 @@ window.__ModuleLoader__.load({
       .dsf-note{font-size:11.5px;color:#93a8c9;margin:6px 0 12px}
       .dsf-row{display:flex;flex-wrap:wrap;gap:8px}
       .dsf-center{text-align:center;padding:18px 0 4px}
+      .dsf-search{display:flex;gap:8px;margin-bottom:10px}
+      .dsf-search .dsf-input{margin:0;flex:1;min-width:0}
+      .dsf-search .dsf-btn{flex:none}
+      .dsf-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 8px;font-size:12px;color:#93a8c9}
+      .dsf-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+      .dsf-item{display:grid;grid-template-columns:54px 1fr;gap:4px 12px;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(170,205,255,.16);animation:dsf-in .3s ease-out backwards}
+      .dsf-item img{grid-row:1 / span 2;width:54px;height:42px;object-fit:contain;align-self:center}
+      .dsf-item b{font-weight:600;color:#fff;overflow-wrap:anywhere}
+      .dsf-item small{color:#f5d27a;font-weight:400;margin-left:6px;white-space:nowrap}
+      .dsf-item p{margin:0;font-size:12.5px;color:#c9d9f0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+      .dsf-item .dsf-row{grid-column:1 / -1;margin-top:6px}
+      .dsf-item .dsf-btn{padding:6px 12px;font-size:12px}
+      .dsf-foot{display:flex;justify-content:center;margin-top:12px}
       .dsf-big{font:400 24px/1.2 "Instrument Serif",Georgia,"Songti SC",serif;color:#f5d27a;margin:0 0 6px}
       @media (prefers-reduced-motion:reduce){.dsf-bobber,.dsf-shadow,.dsf-head img,.dsf-act{animation:none!important}}
     `
@@ -130,9 +147,9 @@ window.__ModuleLoader__.load({
       fab.innerHTML = '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M9 1.5v8.2a3 3 0 1 1-6 0V8.5M9 1.5l4 2.5-4 1.5"/></svg>'
       document.body.appendChild(fab)
 
-      let panel = null, state = 'idle', bait = '', run = 0, cur = null, profile = ''
+      let panel = null, state = 'idle', run = 0, cur = null, profile = ''
       let hold = false, tension = 0, progress = 0, elapsed = 0, slack = 0, surgeEnd = 0, nextSurge = 0, last = 0, biteTimer = 0
-      let body, act, pond, shadow, statusEl, tensionEl, progressEl, customEl
+      let body, act, pond, shadow, statusEl, tensionEl, progressEl, customEl, listBox
 
       const set = (s) => {
         state = s
@@ -148,6 +165,9 @@ window.__ModuleLoader__.load({
       }
       function open() {
         if (panel) return close()
+        query = ''
+        results = []
+        total = 0
         panel = el('section', 'dsf-panel')
         panel.setAttribute('role', 'dialog')
         panel.setAttribute('aria-label', T.title)
@@ -161,35 +181,124 @@ window.__ModuleLoader__.load({
       }
       fab.addEventListener('click', open)
 
+      // ----- say what you need, cast, and read the list -----
+      let query = '', results = [], total = 0, loading = false
       function showSetup() {
         set('idle')
+        const form = el('form', 'dsf-search')
+        customEl = el('input', 'dsf-input')
+        customEl.maxLength = 60
+        customEl.placeholder = T.custom
+        customEl.value = query
+        const go = el('button', 'dsf-btn', T.cast)
+        form.append(customEl, go)
+        form.addEventListener('submit', (e) => {
+          e.preventDefault()
+          void find(customEl.value.trim())
+        })
         const chips = el('div', 'dsf-chips')
         for (const [value, label] of T.baits) {
           const b = el('button', '', label)
           b.type = 'button'
-          b.setAttribute('aria-pressed', String(value === bait && !customEl?.value))
           b.addEventListener('click', () => {
-            bait = value
-            customEl.value = ''
-            for (const c of chips.children) c.setAttribute('aria-pressed', String(c === b))
+            customEl.value = value
+            void find(value)
           })
           chips.append(b)
         }
-        const old = customEl?.value ?? ''
-        customEl = el('input', 'dsf-input')
-        customEl.maxLength = 60
-        customEl.placeholder = T.custom
-        customEl.value = old
-        customEl.addEventListener('input', () => {
-          if (customEl.value.trim()) for (const c of chips.children) c.setAttribute('aria-pressed', 'false')
+        listBox = el('div')
+        body.replaceChildren(el('p', 'dsf-sub', T.sub), form, chips, listBox)
+        if (results.length) renderList()
+        else customEl.focus()
+      }
+      const land = (c) => api(`/dshsea-fish/land?repo=${encodeURIComponent(c.repo)}`).catch(() => null)
+      const copyButton = (c) => {
+        const copy = el('button', 'dsf-btn', T.copy)
+        copy.type = 'button'
+        copy.addEventListener('click', () => {
+          const command = `dsh plugin --profile ${profile || 'tui'} add github:${c.repo}`
+          void navigator.clipboard?.writeText(command).then(() => {
+            copy.textContent = T.copied
+            setTimeout(() => (copy.textContent = T.copy), 1800)
+          })
+          void land(c) // choosing a plugin is what counts as hooking it
         })
-        customEl.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') void cast()
-        })
-        const go = el('button', 'dsf-btn dsf-wide', T.cast)
-        go.type = 'button'
-        go.addEventListener('click', () => void cast())
-        body.replaceChildren(el('p', 'dsf-sub', T.sub), chips, customEl, go)
+        return copy
+      }
+      const linkButton = (label, href, c) => {
+        const a = el('a', 'dsf-btn dsf-alt', label)
+        a.href = href
+        a.target = '_blank'
+        a.rel = 'noopener'
+        if (c) a.addEventListener('click', () => void land(c))
+        return a
+      }
+      function item(c, at) {
+        const li = el('li', 'dsf-item')
+        li.style.animationDelay = `${Math.min(at, 8) * 45}ms`
+        const img = el('img')
+        img.alt = ''
+        img.loading = 'lazy'
+        img.src = creature(c.art.species)
+        img.style.filter = `hue-rotate(${c.art.tint}deg)`
+        img.title = `${c.species} · ${c.rarity} · ${T.from.replace('{depth}', c.depth)}`
+        const name = el('b', '', c.repo)
+        name.append(el('small', '', `★ ${c.stars.toLocaleString('en-US')}`))
+        const row = el('div', 'dsf-row')
+        row.append(copyButton(c), linkButton(T.github, c.github, c), linkButton(T.page, c.page))
+        li.append(img, name, el('p', '', c.description || '—'), row)
+        return li
+      }
+      function renderList() {
+        const bar = el('div', 'dsf-bar')
+        bar.append(el('span', '', (query ? T.bites.replace('{q}', query) : T.bitesAny).replace('{n}', String(query ? total : results.length))))
+        const lucky = el('button', 'dsf-btn dsf-alt', `🎣 ${T.lucky}`)
+        lucky.type = 'button'
+        lucky.title = T.luckyTip
+        lucky.addEventListener('click', () => void luckyCast())
+        bar.append(lucky)
+        const list = el('ul', 'dsf-list')
+        results.forEach((c, at) => list.append(item(c, at % 8)))
+        const out = [bar, list]
+        if (!query || results.length < total) {
+          const foot = el('div', 'dsf-foot')
+          const more = el('button', 'dsf-btn dsf-alt', T.more)
+          more.type = 'button'
+          more.addEventListener('click', () => void find(query, true))
+          foot.append(more)
+          out.push(foot)
+        }
+        out.push(el('p', 'dsf-note', T.restart))
+        listBox.replaceChildren(...out)
+      }
+      async function find(text, more = false) {
+        if (loading) return
+        loading = true
+        const me = ++run
+        if (!more) {
+          query = text.slice(0, 60)
+          results = []
+          total = 0
+          listBox.replaceChildren(el('p', 'dsf-status', T.casting))
+        }
+        try {
+          const r = await api(`/dshsea-fish/search?bait=${encodeURIComponent(query)}&offset=${query ? results.length : 0}`)
+          if (me !== run || !panel) return
+          profile = r.profile || profile
+          if (r.matched === false) {
+            const box = el('div', 'dsf-center')
+            box.append(el('p', 'dsf-big', T.none.replace('{q}', query)), el('p', 'dsf-sub', T.noneTip), linkButton(T.wish, `https://dshsea.com/${zh ? 'zh/' : ''}wishes`))
+            return listBox.replaceChildren(box)
+          }
+          const known = new Set(results.map((c) => c.repo))
+          results = results.concat(r.catches.filter((c) => !known.has(c.repo)))
+          total = Math.max(r.total, results.length)
+          renderList()
+        } catch (e) {
+          if (me === run && panel) listBox.replaceChildren(el('p', 'dsf-status', T.fail.replace('{e}', e.message)))
+        } finally {
+          loading = false
+        }
       }
 
       function showPlay() {
@@ -227,26 +336,19 @@ window.__ModuleLoader__.load({
         act?.classList.toggle('dsf-held', state === 'reel' && down)
       }
 
-      async function cast() {
-        if (state !== 'idle' && state !== 'result' && state !== 'lost' && state !== 'none') return
-        const query = (customEl?.value.trim() || bait).slice(0, 60)
+      // ----- lucky cast: the optional game. One of the listed fish, at random, reeled in by hand. -----
+      async function luckyCast() {
+        if (!results.length || (state !== 'idle' && state !== 'result' && state !== 'lost')) return
         const me = ++run
+        const c = results[Math.floor(Math.random() * results.length)]
         cur = null
         showPlay()
         set('wait')
-        const fetching = api(`/dshsea-fish/cast?bait=${encodeURIComponent(query)}`).then((r) => ({ r }), (e) => ({ e }))
-        void fetching.then(({ r }) => {
-          const c = r?.catches?.[0]
-          if (me !== run || !c || !panel) return
-          shadow.src = creature(c.art.species)
-          shadow.hidden = false
-        })
-        const [{ r, e }] = await Promise.all([fetching, sleep(1600 + Math.random() * 2400)])
+        shadow.src = creature(c.art.species)
+        shadow.hidden = false
+        await sleep(1200 + Math.random() * 1800)
         if (me !== run || state !== 'wait') return
-        const c = r?.catches?.[0]
-        if (!c) return showMiss(e ? T.fail.replace('{e}', e.message) : r.matched === false && query ? T.none.replace('{q}', query) : T.fail.replace('{e}', '…'), !e && r.matched === false && !!query)
         cur = c
-        profile = r.profile || ''
         set('bite')
         statusEl.textContent = T.bite
         act.disabled = false
@@ -306,28 +408,12 @@ window.__ModuleLoader__.load({
         const row = el('div', 'dsf-row')
         const again = el('button', 'dsf-btn', T.again)
         again.type = 'button'
-        again.addEventListener('click', () => void cast())
+        again.addEventListener('click', () => void luckyCast())
         const back = el('button', 'dsf-btn dsf-alt', T.back)
         back.type = 'button'
         back.addEventListener('click', showSetup)
         row.append(again, back)
         return row
-      }
-      function showMiss(text, wish) {
-        set('none')
-        const box = el('div', 'dsf-center')
-        box.append(el('p', 'dsf-big', text))
-        const row = againRow()
-        row.style.justifyContent = 'center'
-        if (wish) {
-          const a = el('a', 'dsf-btn dsf-alt', T.wish)
-          a.href = `https://dshsea.com/${zh ? 'zh/' : ''}wishes`
-          a.target = '_blank'
-          a.rel = 'noopener'
-          row.append(a)
-        }
-        box.append(row)
-        body.replaceChildren(box)
       }
       function lose(why) {
         const c = cur
@@ -355,32 +441,15 @@ window.__ModuleLoader__.load({
         info.append(chip, el('h3', 'dsf-name', c.repo), el('p', 'dsf-meta', `★ ${c.stars.toLocaleString('en-US')} · ${T.from.replace('{depth}', c.depth)}`))
         head.append(img, info)
         const count = el('p', 'dsf-count')
-        const command = `dsh plugin --profile ${profile || 'tui'} add github:${c.repo}`
-        const install = el('div', 'dsf-install')
-        const copy = el('button', 'dsf-btn dsf-alt', T.copy)
-        copy.type = 'button'
-        copy.addEventListener('click', () => {
-          void navigator.clipboard?.writeText(command).then(() => {
-            copy.textContent = T.copied
-            setTimeout(() => (copy.textContent = T.copy), 1400)
-          })
-        })
-        install.append(el('code', '', command), copy)
-        const links = el('div', 'dsf-row')
-        for (const [label, href] of [[T.github, c.github], [T.page, c.page]]) {
-          const a = el('a', 'dsf-btn dsf-alt', label)
-          a.href = href
-          a.target = '_blank'
-          a.rel = 'noopener'
-          links.append(a)
-        }
+        const actions = el('div', 'dsf-row')
+        actions.append(copyButton(c), linkButton(T.github, c.github, c), linkButton(T.page, c.page))
         const again = againRow()
         again.style.marginTop = '14px'
-        body.replaceChildren(head, el('p', 'dsf-desc', c.description || '—'), count, el('p', 'dsf-label', T.install), install, el('p', 'dsf-note', T.restart), links, again)
-        // Landing it is what counts on dshsea.com.
-        api(`/dshsea-fish/land?repo=${encodeURIComponent(c.repo)}`).then((res) => {
-          if (cur === c && res.ok && res.hooked > 0) count.textContent = T.hooked.replace('{n}', res.hooked.toLocaleString('en-US'))
-        }).catch(() => {})
+        body.replaceChildren(head, el('p', 'dsf-desc', c.description || '—'), count, actions, el('p', 'dsf-note', T.restart), again)
+        // Reeling it in by hand counts too.
+        void land(c).then((res) => {
+          if (cur === c && res?.ok && res.hooked > 0) count.textContent = T.hooked.replace('{n}', res.hooked.toLocaleString('en-US'))
+        })
       }
 
       // Space strikes and reels while the panel is up, unless the user is typing somewhere.

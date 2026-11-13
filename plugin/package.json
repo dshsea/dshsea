@@ -1,7 +1,7 @@
 {
   "name": "dshsea-fish",
-  "version": "0.2.0",
-  "description": "Go fishing for DeepSeek Harness plugins. A fishing panel in the dsh client (pick a bait, cast, reel in an installable plugin) plus a tool the agent can use to find plugins for you, both backed by dshsea.com, an ocean of 30,000+ dsh plugins. It recommends and shows the install command; it never installs anything itself.",
+  "version": "0.3.0",
+  "description": "Go fishing for DeepSeek Harness plugins. A fishing panel in the dsh client (say what you need, cast, and every matching installable plugin is listed with its install command) plus a tool the agent can use to find plugins for you, both backed by dshsea.com, an ocean of 30,000+ dsh plugins. It recommends and shows the install command; it never installs anything itself.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

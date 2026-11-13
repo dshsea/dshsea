@@ -3,8 +3,9 @@
  *
  * dsh has no built-in way to find a plugin you do not already know the name of. dshsea.com keeps
  * every repo tagged `dsh-plugin` as a creature in an ocean, and knows which of them really declare
- * a DSH bundle. This plugin gives the agent one tool, `dshsea_fish`: cast with a few words about
- * what the user needs, and it reels in a handful of installable plugins that fit.
+ * a DSH bundle. This plugin gives the agent one tool, `dshsea_fish` (cast with a few words about
+ * what the user needs, and it reels in a handful of installable plugins that fit), and gives the
+ * user a fishing panel in the client that lists every match for a bait (client/client.js).
  *
  * It only recommends. Nothing is installed by this plugin: the tool returns the install command and
  * the user decides. The catalogue is unreviewed community code, and the tool says so.
@@ -88,12 +89,8 @@ function profileName() {
 }
 const installCommand = (repo) => `dsh plugin --profile ${profileName()} add github:${repo}`
 
-/**
- * Casts: returns up to `count` installable plugins matching the bait, each with what the agent
- * needs to describe it. `seen` holds indices already shown in this process, so a second cast with
- * the same bait brings up something else.
- */
-export async function cast(bait, count, seen, signal) {
+/** Ranks every installable plugin that takes the bait, best first. `tokens` is empty for no bait. */
+async function rank(bait, signal) {
   const tokens = tokenize(bait).slice(0, 8)
   const score = new Map()
   if (tokens.length) {
@@ -101,21 +98,65 @@ export async function cast(bait, count, seen, signal) {
     lists.forEach((list) => {
       // Rarer words say more; a word's own list is already best-first.
       const weight = 1 + 3 / Math.sqrt(list.length || 1)
-      list.forEach((i, rank) => score.set(i, (score.get(i) ?? 0) + weight * (1 - rank / (list.length * 4))))
+      list.forEach((i, at) => score.set(i, (score.get(i) ?? 0) + weight * (1 - at / (list.length * 4))))
     })
   }
-  let pool = [...score.entries()].sort((a, b) => b[1] - a[1]).map(([i]) => i)
-  const matched = pool.length > 0
-  if (!matched && tokens.length) return { matched: false, catches: [] }
-  if (!matched) {
-    // No bait at all: a surprise cast among the installable ones.
-    const { bits } = await getJson('/data/inst.json', signal)
-    const bytes = Buffer.from(bits, 'base64')
-    const all = []
-    for (let i = 0; i < bytes.length * 8; i++) if (bytes[i >> 3] & (1 << (i & 7))) all.push(i)
-    for (let n = 0; n < 40 && all.length; n++) pool.push(all[Math.floor(Math.random() * all.length)])
+  return { tokens, order: [...score.entries()].sort((a, b) => b[1] - a[1]).map(([i]) => i) }
+}
+/** A handful of installable plugins picked at random, for a cast with no bait. */
+async function surprise(n, signal) {
+  const { bits } = await getJson('/data/inst.json', signal)
+  const bytes = Buffer.from(bits, 'base64')
+  const all = []
+  for (let i = 0; i < bytes.length * 8; i++) if (bytes[i >> 3] & (1 << (i & 7))) all.push(i)
+  const out = new Set()
+  for (let tries = 0; out.size < n && tries < n * 4 && all.length; tries++) out.add(all[Math.floor(Math.random() * all.length)])
+  return [...out]
+}
+/** Everything worth saying about the creature at this index, or null when it is not a GitHub repo. */
+async function describe(index, signal) {
+  const rows = await getJson(`/data/c/${Math.floor(index / CHUNK)}.json`, signal)
+  const row = rows[index % CHUNK]
+  if (!row || typeof row[0] !== 'string' || row[0].startsWith('http')) return null
+  const repo = row[0], key = repo.toLowerCase()
+  // The repo's page data carries its species and rarity, already worked out by the site.
+  const page = (await getJson(`/data/r/${hashKey(key) % REPO_BUCKETS}.json`, signal).catch(() => ({})))[key] ?? {}
+  return {
+    repo,
+    description: row[2] || '',
+    stars: row[1],
+    species: page.SPECIES_NAME ?? 'Fish',
+    rarity: page.RARITY_NAME ?? 'Common',
+    // For the fishing panel only (client/client.js): which picture to show, and how to tint it.
+    art: { species: page.SPECIES ?? 'fish', rarity: page.RARITY ?? 'common', tint: Number(page.TINT) || 0 },
+    depth: fmtDepth(index),
+    page: page.P ? `${SITE}/p/${page.P}` : `${SITE}/r/${key}`,
+    github: `https://github.com/${repo}`,
+    install: installCommand(repo),
   }
-  // The best matches lead, with a little luck among the next few: it is fishing, not a database query.
+}
+
+/**
+ * The plain answer to "what is there for this?": the best matches in order, `limit` at a time from
+ * `offset`. This is what the fishing panel lists. No bait gives a random handful.
+ */
+export async function search(bait, limit, offset, signal) {
+  const { tokens, order } = await rank(bait, signal)
+  if (tokens.length && !order.length) return { matched: false, total: 0, catches: [] }
+  const picked = tokens.length ? order.slice(offset, offset + limit) : await surprise(limit, signal)
+  const catches = (await Promise.all(picked.map((i) => describe(i, signal).catch(() => null)))).filter(Boolean)
+  return { matched: true, total: tokens.length ? order.length : catches.length, catches }
+}
+
+/**
+ * Casts for the agent: up to `count` matches, the best one first and a little luck among the next
+ * few. `seen` holds indices already shown in this process, so a second cast with the same bait
+ * brings up something else.
+ */
+export async function cast(bait, count, seen, signal) {
+  const { tokens, order } = await rank(bait, signal)
+  if (tokens.length && !order.length) return { matched: false, catches: [] }
+  const pool = tokens.length ? order : await surprise(40, signal)
   const fresh = pool.filter((i) => !seen.has(i))
   const from = (fresh.length >= count ? fresh : pool).slice(0, Math.max(count * 4, 12))
   const picked = []
@@ -123,31 +164,14 @@ export async function cast(bait, count, seen, signal) {
     const at = picked.length === 0 ? 0 : Math.floor(Math.random() ** 2 * from.length)
     picked.push(from.splice(at, 1)[0])
   }
-
   const catches = []
   for (const index of picked) {
-    const rows = await getJson(`/data/c/${Math.floor(index / CHUNK)}.json`, signal)
-    const row = rows[index % CHUNK]
-    if (!row || typeof row[0] !== 'string' || row[0].startsWith('http')) continue
-    const repo = row[0], key = repo.toLowerCase()
-    // The repo's page data carries its species and rarity, already worked out by the site.
-    const page = (await getJson(`/data/r/${hashKey(key) % REPO_BUCKETS}.json`, signal).catch(() => ({})))[key] ?? {}
+    const c = await describe(index, signal)
+    if (!c) continue
     seen.add(index)
-    catches.push({
-      repo,
-      description: row[2] || '',
-      stars: row[1],
-      species: page.SPECIES_NAME ?? 'Fish',
-      rarity: page.RARITY_NAME ?? 'Common',
-      // For the fishing panel only (client/client.js): which picture to show, and how to tint it.
-      art: { species: page.SPECIES ?? 'fish', rarity: page.RARITY ?? 'common', tint: Number(page.TINT) || 0 },
-      depth: fmtDepth(index),
-      page: page.P ? `${SITE}/p/${page.P}` : `${SITE}/r/${key}`,
-      github: `https://github.com/${repo}`,
-      install: installCommand(repo),
-    })
+    catches.push(c)
   }
-  return { matched, catches }
+  return { matched: true, catches }
 }
 
 /** Tells dshsea that the user landed this one. Best effort: a failure here is nobody's problem. */
@@ -274,7 +298,7 @@ export function apply(ctx) {
 
   // ----- routes for the fishing panel (client/client.js) -----
   // The panel runs in the dsh client, which should not have to reach another origin itself, so it
-  // asks this half to cast, to report a landed catch, and to fetch creature pictures.
+  // asks this half to search, to report a plugin the user chose, and to fetch creature pictures.
   ctx.inject(['webServer'], (hostCtx) => {
     const server = hostCtx.get ? hostCtx.get('webServer') : hostCtx.webServer
     if (server === undefined || server === null || typeof server.register !== 'function') return
@@ -300,9 +324,9 @@ export function apply(ctx) {
           }),
         `dshsea-fish: ${path}`,
       )
-    route('/dshsea-fish/cast', async (query, response) => {
-      if (seen.size > 400) seen.clear()
-      const result = await cast((query.get('bait') ?? '').trim().slice(0, 120), 1, seen)
+    route('/dshsea-fish/search', async (query, response) => {
+      const offset = Math.max(0, Math.min(240, Math.floor(Number(query.get('offset')) || 0)))
+      const result = await search((query.get('bait') ?? '').trim().slice(0, 120), 8, offset)
       send(response, 200, JSON.stringify({ ...result, profile: profileName() }))
     })
     route('/dshsea-fish/land', async (query, response) => send(response, 200, JSON.stringify(await land(query.get('repo') ?? ''))))
