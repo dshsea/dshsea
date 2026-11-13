@@ -317,7 +317,6 @@ export async function initOcean3D() {
   }, 1000);
   $('logbook').addEventListener('click', () => {
     renderDex();
-    void renderBoard();
     openSheet('dex');
   });
   /** Only one sheet at a time. */
@@ -1037,15 +1036,17 @@ export async function initOcean3D() {
     if (n < 0 || bottleBands.has(n) || !apiOk) return;
     bottleBands.set(n, null);
     fetch(`/api/bottles?band=${n}`)
-      .then((r) => (r.ok && r.headers.get('content-type')?.includes('json') ? r.json() : Promise.reject()))
+      .then((r) => {
+        // A 404 or an HTML answer means there is no server here at all (astro dev): stop asking.
+        if (r.status === 404 || !r.headers.get('content-type')?.includes('json')) apiOk = false;
+        return r.ok && apiOk ? r.json() : Promise.reject();
+      })
       .then((list: Bottle[]) => {
         bottleBands.set(n, list);
         $('bottle-btn').hidden = false;
       })
-      .catch(() => {
-        apiOk = false;
-        $('bottle-btn').hidden = true;
-      });
+      // A dropped connection is not the same thing: forget the attempt and try again shortly.
+      .catch(() => setTimeout(() => bottleBands.delete(n), 5000));
   }
   function dropBottle(id: number) {
     const lb = liveBottles.get(id);
@@ -1144,26 +1145,25 @@ export async function initOcean3D() {
   let lastScoreAt = 0;
   const myScore = () => ({ id: log.board.id, name: log.board.name, seen: seenCount(), species: speciesCount(), deepest: Math.round(log.deepest), ach: Object.keys(log.ach).length });
   function submitScore(force = false) {
-    if (!apiOk || !log.board.id || (!force && Date.now() - lastScoreAt < 45000)) return Promise.resolve(null);
+    if (!log.board.id || (!force && Date.now() - lastScoreAt < 45000)) return Promise.resolve(null);
     lastScoreAt = Date.now();
     return post('/api/score', myScore()).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   }
   async function renderBoard() {
-    if (!apiOk) return;
+    const list = $('board-list');
+    list.textContent = t.boardLoading;
+    $('board-join').hidden = !!log.board.id;
     const rank = await submitScore(true);
     let rows: Score[];
     try {
-      const res = await fetch('/api/board');
-      if (!res.ok || !res.headers.get('content-type')?.includes('json')) throw new Error();
+      const res = await fetch('/api/board', { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
       rows = await res.json();
     } catch {
-      apiOk = false;
+      list.textContent = t.boardFail;
       return;
     }
-    $('board').hidden = false;
-    $('board-join').hidden = !!log.board.id;
     $('board-you').textContent = rank ? t.boardYou.replace('{n}', String(rank.rank)) : '';
-    const list = $('board-list');
     list.replaceChildren(...rows.map((r) => {
       const li = document.createElement('li');
       li.classList.toggle('me', !!log.board.id && r.name === log.board.name && r.seen === seenCount());
@@ -1178,6 +1178,10 @@ export async function initOcean3D() {
     }));
     if (!rows.length) list.textContent = t.boardEmpty;
   }
+  $('board-btn').addEventListener('click', () => {
+    openSheet('board-sheet');
+    void renderBoard();
+  });
   $<HTMLFormElement>('board-join').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
@@ -1304,7 +1308,7 @@ export async function initOcean3D() {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeCard();
-      for (const id of ['egg', 'dex', 'shot', 'bounty-sheet', 'bottle-write', 'bottle-read']) $(id).hidden = true;
+      for (const id of ['egg', 'dex', 'shot', 'bounty-sheet', 'bottle-write', 'bottle-read', 'board-sheet']) $(id).hidden = true;
       return;
     }
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
