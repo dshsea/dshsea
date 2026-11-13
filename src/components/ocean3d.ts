@@ -20,9 +20,12 @@ type Creature = {
   group: THREE.Group; mesh: THREE.Mesh; mat: THREE.ShaderMaterial; halo: THREE.Sprite; label: THREE.Sprite;
   base: THREE.Vector3; az: number; frac: number; size: number; shape: THREE.Vector3; phase: number; speed: number; swims: boolean;
   hay: string; near: number; revealAt: number; spinAt: number; known: boolean; screen: Screen;
+  /** Welcome reef: the depth this copy is pinned at, instead of where the creature really lives. */
+  pin: number | null;
 };
 type Payload = {
   base: string;
+  fresh: Row[];
   meta: { count: number; chunk: number; landmarks: [number, string, number][] };
   claimed: Record<string, number>;
   t: Record<string, any>;
@@ -30,7 +33,7 @@ type Payload = {
 
 const K = 0.053; // world units per metre
 const START_DEPTH = -34; // the diver starts above the water
-const GHOST_DEPTH = 90;
+const GHOST_DEPTH = 244; // just below the welcome reef
 const WINDOW = 820; // metres of ocean kept alive above and below the diver
 const LOG_KEY = 'dshsea-log-v1';
 
@@ -343,9 +346,10 @@ export async function initOcean3D() {
     // Wider than the view: there is always more off to the side if you look around.
     c.az = (u * 2 - 1) * spread;
     const r = (portrait ? 15 : 9.5) + c.frac * (portrait ? 17 : 10) + c.size * 1.2;
-    c.base.set(Math.sin(c.az) * r, -c.depth * K + (frac(c.index * 0.377) - 0.5) * 1.2, -Math.cos(c.az) * r);
+    c.base.set(Math.sin(c.az) * r, -(c.pin ?? c.depth) * K + (frac(c.index * 0.377) - 0.5) * 1.2, -Math.cos(c.az) * r);
   }
-  function spawn(index: number, row: Row) {
+  /** `pin` puts a copy of a claimed creature on the welcome reef (index < 0) at that depth. */
+  function spawn(index: number, row: Row, pin: number | null = null) {
     const repoOrUrl = row[0];
     const isUrl = repoOrUrl.startsWith('http');
     const key = repoOrUrl.toLowerCase().replace(/\/$/, '');
@@ -369,7 +373,8 @@ export async function initOcean3D() {
     }));
     halo.scale.setScalar(Math.min(size * 5, 9));
     halo.renderOrder = -1;
-    const { tex, aspect } = labelTexture(name, `★ ${fmtStars(stars)}`);
+    const { tex, aspect } = labelTexture(name, pin === null ? `★ ${fmtStars(stars)}` : `✦ ${t.reefTag} · ★ ${fmtStars(stars)}`);
+    if (pin !== null) (halo.material as THREE.SpriteMaterial).color.set(0xffd27a);
     const label = new THREE.Sprite(labelMaterial(tex));
     label.scale.set(aspect, 1, 1);
     label.position.y = -size * spec.drop - 0.75;
@@ -378,7 +383,7 @@ export async function initOcean3D() {
     group.add(halo, label);
     scene.add(group);
     const c: Creature = {
-      index, key, name, desc, stars, depth: depthOf(index), url: isUrl ? repoOrUrl : `https://github.com/${repoOrUrl}`, repo: isUrl ? null : repoOrUrl,
+      index, key, name, desc, stars, pin, depth: depthOf(pin === null ? index : payload.claimed[row[3]!] ?? 0), url: isUrl ? repoOrUrl : `https://github.com/${repoOrUrl}`, repo: isUrl ? null : repoOrUrl,
       slug: row[3] ?? null, species: tr.species, rarity: tr.rarity, hue: tr.hue,
       group, mesh, mat, halo, label, base: new THREE.Vector3(), az: 0, frac: frac(index * 0.7548776662), size, shape, phase,
       speed: 0.2 + ((tr.hue * 7) % 100) / 520, swims: spec.swims, near: 0, revealAt: -99, spinAt: -99, known: !!log.seen[key], screen: null,
@@ -387,7 +392,7 @@ export async function initOcean3D() {
     place(c);
     group.position.copy(c.base);
     live.set(index, c);
-    if (pendingOpen === index) {
+    if (pendingOpen >= 0 && pendingOpen === index) {
       pendingOpen = -1;
       openCard(c);
     }
@@ -781,7 +786,16 @@ export async function initOcean3D() {
         budget--;
       }
     }
-    for (const c of live.values()) if (c.index < i0 - 6 || c.index > i1 + 6) despawn(c);
+    // The welcome reef: the newest claims, pinned where every dive begins.
+    if (!above && camDepth < 700) {
+      let budget = 2;
+      for (let k = 0; k < payload.fresh.length && budget > 0; k++) {
+        if (live.has(-1 - k)) continue;
+        spawn(-1 - k, payload.fresh[k], 44 + k * 26);
+        budget--;
+      }
+    }
+    for (const c of live.values()) if (c.pin !== null ? camDepth > 1000 : c.index < i0 - 6 || c.index > i1 + 6) despawn(c);
 
     for (const c of live.values()) {
       c.group.visible = !above;
@@ -813,14 +827,15 @@ export async function initOcean3D() {
       const reveal = clamp(1 - (time - c.revealAt) / 6, 0, 1);
       // Identifying a creature takes light: the lamp, a sonar ping, or meeting it up close.
       if (!c.known && (lampNear > 0.55 || reveal > 0.9)) discover(c);
-      const deepGlow = 0.1 + 0.75 * smooth(150, 2600, c.depth);
+      const deepGlow = 0.1 + 0.75 * smooth(150, 2600, c.pin ?? c.depth);
       c.mat.uniforms.uGlow.value = Math.min(1.1, deepGlow + c.near * 0.18 + lampNear * 0.2 + reveal * 0.25 + (query && isMatch ? 0.3 + Math.sin(time * 5) * 0.15 : 0));
       c.mat.uniforms.uDim.value += ((isMatch ? 0 : 0.88) - c.mat.uniforms.uDim.value) * 0.15;
       const s = (c.screen = toScreen(g, c.size));
       const dist = s ? s.d : 99;
-      (c.halo.material as THREE.SpriteMaterial).opacity = isMatch ? (0.04 + deepGlow * 0.2 + c.near * 0.08 + reveal * 0.1) * (0.35 + 0.65 * smooth(70, 12, dist)) : 0;
+      (c.halo.material as THREE.SpriteMaterial).opacity = isMatch ? (0.04 + (c.pin !== null ? 0.16 : deepGlow * 0.2) + c.near * 0.08 + reveal * 0.1) * (0.35 + 0.65 * smooth(70, 12, dist)) : 0;
       // Names stay hidden until a creature has been discovered.
-      const nearLabel = c.known ? (mobile ? smooth(38, 24, dist) : smooth(22, 13, dist)) : 0;
+      // ...except on the welcome reef, where the newcomers are introduced to everyone.
+      const nearLabel = c.pin !== null ? smooth(46, 30, dist) : c.known ? (mobile ? smooth(38, 24, dist) : smooth(22, 13, dist)) : 0;
       const lm = c.label.material as THREE.SpriteMaterial;
       lm.opacity += ((isMatch ? Math.max(nearLabel, c.near, reveal, lampNear, query ? 1 : 0) : 0.08) - lm.opacity) * ease(6);
     }

@@ -13,6 +13,7 @@ Every wild creature has a page at `dshsea.com/r/<owner>/<repo>` that links to th
 - their own page (`dshsea.com/p/<name>`), share card and README badge
 - your own description, in English and optionally Chinese
 - the species you pick
+- a spell on the **welcome reef**: the eight most recently claimed creatures swim right under the surface, where every diver enters, with their names lit, and are listed on the home page until newer claims take their place
 
 To claim, add one YAML file to [`data/projects/`](data/projects) and open a pull request. The quickest way is the **Claim it** button on a creature's card, or [dshsea.com/submit](https://dshsea.com/submit).
 
@@ -46,7 +47,7 @@ x: your_x_handle
 
 - **Species.** Wild creatures get one by chance, from a pool that depends on stars: common (under 20), rare (20+), epic (1,000+). Claimed creatures can pick any of these with `species`: `fish`, `jellyfish`, `seahorse`, `pufferfish`, `eel`, `crab`, `starfish`, `shrimp`, `nudibranch`, `anglerfish`, `turtle`, `octopus`, `squid`, `cuttlefish`, `lionfish`, `sunfish`, `nautilus`, `shark`, `hammerhead`, `manta`, `narwhal`, `dolphin`, `swordfish`. At 100k+ stars every project becomes a whale; that one is earned, not picked.
 - **Size** comes from stars.
-- **Depth** comes from age and has no limit. The newest project swims 200 m down; each older one lives 32 m below the next. Every new plugin pushes the whole ocean a little deeper.
+- **Depth** comes from age and has no limit. The newest project swims 260 m down; each older one lives 32 m below the next. Every new plugin pushes the whole ocean a little deeper.
 - **Colour, pattern and proportions** are derived from the repo name, so no two creatures look alike.
 
 ## House rules

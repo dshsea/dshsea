@@ -68,7 +68,8 @@ export const tintDeg = (hue: number) => (((hue - REF_HUE) % 360) + 360) % 360;
 export const tintStyle = (hue: number) => `--tint:${tintDeg(hue)}deg`;
 
 // Depth is seniority and has no floor: every project sits STEP metres below the next newer one.
-export const DEPTH_START = 200;
+// The first 260 m are kept clear for the welcome reef (the newest claims) and the "your project?" ghost.
+export const DEPTH_START = 260;
 export const DEPTH_STEP = 32;
 export const depthOf = (index: number) => DEPTH_START + index * DEPTH_STEP;
 

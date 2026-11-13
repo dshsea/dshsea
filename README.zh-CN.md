@@ -11,7 +11,7 @@
 | | |
 | --- | --- |
 | [![](docs/shallow.jpg)](https://dshsea.com) | [![](docs/deep.jpg)](https://dshsea.com) |
-| **下潜。** 滚轮、滑动，或者按住按钮一路坠落几公里。生物的名字默认隐藏，被你的灯或声呐照到才会显示。 | **看不到底。** 最新的插件游在 200 米，每老一个就再深 32 米。越往下，水色也在变。 |
+| **下潜。** 滚轮、滑动，或者按住按钮一路坠落几公里。生物的名字默认隐藏，被你的灯或声呐照到才会显示。 | **看不到底。** 最新的插件游在 260 米，每老一个就再深 32 米。越往下，水色也在变。 |
 | [![](docs/sonar.jpg)](https://dshsea.com) | [![](docs/card.jpg)](https://dshsea.com) |
 | **声呐。** 按名字搜索任何一个插件，直接传送过去。 | **认识它。** 每只生物都链接到自己的仓库，显示还差多少 star 进化，作者可以认领。 |
 | [![](docs/field-guide.jpg)](https://dshsea.com) | [![](docs/bounty.jpg)](https://dshsea.com) |
@@ -24,7 +24,7 @@
 ## 生物从哪来
 
 - **野生生物。** 每周一次的 GitHub Action 会把所有带 `dsh-plugin` topic 的仓库抓进 `data/wild.json`，它们会自动出现在海里。
-- **已认领的生物。** 作者在 [`data/projects/`](data/projects) 下加一个 YAML 文件并提 PR 即可认领。认领后拥有独立页面、分享卡片、徽章，还能自选物种。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+- **已认领的生物。** 作者在 [`data/projects/`](data/projects) 下加一个 YAML 文件并提 PR 即可认领。认领后拥有独立页面、分享卡片、徽章，还能自选物种。最新认领的 8 只还会出现在**迎新礁**：海面正下方、每个潜水员入水的地方，并在首页点名。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 参与
 

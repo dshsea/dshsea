@@ -11,7 +11,7 @@ Every DeepSeek Harness plugin is a creature somewhere in a bottomless ocean: mor
 | | |
 | --- | --- |
 | [![](docs/shallow.jpg)](https://dshsea.com) | [![](docs/deep.jpg)](https://dshsea.com) |
-| **Dive.** Scroll, swipe, or hold the button and fall for kilometres. Names stay hidden until your lamp or a sonar ping identifies a creature. | **No bottom in sight.** The newest plugin swims at 200 m; every older one lives 32 m deeper. The water changes colour as you go. |
+| **Dive.** Scroll, swipe, or hold the button and fall for kilometres. Names stay hidden until your lamp or a sonar ping identifies a creature. | **No bottom in sight.** The newest plugin swims at 260 m; every older one lives 32 m deeper. The water changes colour as you go. |
 | [![](docs/sonar.jpg)](https://dshsea.com) | [![](docs/card.jpg)](https://dshsea.com) |
 | **Sonar.** Search every plugin by name and jump straight to it. | **Meet it.** Each creature links to its repo, shows how many stars it needs to evolve, and can be claimed by its author. |
 | [![](docs/field-guide.jpg)](https://dshsea.com) | [![](docs/bounty.jpg)](https://dshsea.com) |
@@ -24,7 +24,7 @@ Also in the water: **bottles** (leave a note at any depth for the next diver) an
 ## How it fills up
 
 - **Wild creatures.** A weekly GitHub Action crawls every repo tagged `dsh-plugin` into `data/wild.json`. They all appear in the ocean automatically.
-- **Claimed creatures.** Authors claim theirs by adding one YAML file under [`data/projects/`](data/projects) in a PR. Claimed creatures get a page, a share card, a badge and a species of their choice. See [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Claimed creatures.** Authors claim theirs by adding one YAML file under [`data/projects/`](data/projects) in a PR. Claimed creatures get a page, a share card, a badge and a species of their choice. The eight newest claims also swim on the **welcome reef**, right under the surface where every diver enters, and are named on the home page. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing
 

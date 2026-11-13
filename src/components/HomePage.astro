@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { dict, href, prefix, type Lang } from '../lib/i18n';
-import { getCatalog, getProjects, CHUNK, fmt } from '../lib/projects';
+import { getCatalog, getProjects, getFresh, CHUNK, fmt } from '../lib/projects';
 import { depthOf, fmtDepth } from '../lib/species';
 
 interface Props { lang: Lang }
@@ -17,8 +17,11 @@ const landmarks = entries
   .sort((a, b) => b[2] - a[2])
   .slice(0, 120);
 
+const fresh = getFresh();
 const payload = {
   base: prefix(lang),
+  // The welcome reef, as chunk rows: [repo or url, stars, desc, slug, name, species].
+  fresh: fresh.map((p) => [p.repo ?? p.url, p.stars, (lang === 'zh' && p.descriptionZh) || p.description, p.slug, p.name, p.species]),
   meta: { count, chunk: CHUNK, landmarks },
   claimed: Object.fromEntries(projects.map((p) => [p.slug, p.index])),
   // Used by the no-WebGL fallback, which only shows claimed creatures.
@@ -28,7 +31,7 @@ const payload = {
   })),
   t: {
     zones: t.zones, speciesNames: t.speciesNames, rarityNames: t.rarityNames,
-    ghostLabel: t.ghostLabel, sonarNone: t.sonarNone, hintMouse: t.hintMouse, hintTouch: t.hintTouch,
+    ghostLabel: t.ghostLabel, reefTag: t.reefTag, sonarNone: t.sonarNone, hintMouse: t.hintMouse, hintTouch: t.hintTouch,
     newSpecies: t.newSpecies, noDesc: t.noDesc, wild: t.wild, claimed: t.claimed, claim: t.claim, details: t.details,
     dexUnknown: t.dexUnknown, bestEmpty: t.bestEmpty, achToast: t.achToast, ach: t.ach,
     trackBelow: t.trackBelow, trackAbove: t.trackAbove, trackNear: t.trackNear,
@@ -56,7 +59,11 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
       <p class="kicker">{t.heroKicker}</p>
       <h1>{t.heroTitle1} <em>{t.heroTitle2}</em></h1>
       <p class="sub">{t.heroSub(fmt(count))}</p>
-      <a class="btn" href={href(lang, '/submit')}>{t.heroCta} →</a>
+      <a class="btn" href="/u">{t.heroCta} →</a>
+      <p class="fresh">
+        <span>{t.justClaimed}</span>
+        {fresh.slice(0, 4).map((p) => <a href={href(lang, `/p/${p.slug}`)}>{p.name}</a>)}
+      </p>
     </section>
     <p class="scroll"><span></span>{t.scrollHint}</p>
     <div id="ocean-spacer"></div>
@@ -286,7 +293,11 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   :global(body.dived) .scroll, :global(body.ocean-2d) .scroll { opacity: 0; }
   .scroll span { width: 1px; height: 30px; background: linear-gradient(rgba(255, 255, 255, 0), #fff); animation: drip 1.9s ease-in-out infinite; transform-origin: top; }
   @keyframes drip { 0% { transform: scaleY(0); opacity: 0; } 40% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1) translateY(14px); opacity: 0; } }
-  @media (max-height: 640px) { .kicker { display: none; } }
+  .fresh { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; font-size: 13px; }
+  .fresh span { color: #ffe9c9; letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; margin-right: 4px; }
+  .fresh a { color: #fff; text-decoration: none; padding: 4px 12px; border-radius: 999px; background: rgba(20, 10, 50, 0.32); border: 1px solid rgba(255, 255, 255, 0.28); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .fresh a:hover { background: rgba(110, 243, 214, 0.25); border-color: var(--glow); }
+  @media (max-height: 640px) { .kicker, .fresh { display: none; } }
   :global(html[lang^='zh']) .kicker { letter-spacing: 0.4em; }
 
   .sonar-wrap { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; max-width: 440px; margin: 0 auto; }

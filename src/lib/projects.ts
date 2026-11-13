@@ -63,6 +63,13 @@ export function getCatalog() {
   return (cache ??= build());
 }
 export const getProjects = () => getCatalog().projects;
+/**
+ * The welcome reef: the most recently claimed creatures swim just under the surface, where every
+ * diver enters, until newer claims take their place. Ties on the date go to the bigger project.
+ */
+export const REEF_SIZE = 8;
+export const getFresh = () =>
+  [...getProjects()].sort((a, b) => b.added.localeCompare(a.added) || b.stars - a.stars || a.slug.localeCompare(b.slug)).slice(0, REEF_SIZE);
 
 /** A chunk of the ocean as the browser receives it. Wild rows are [repo, stars, desc]; claimed rows carry more. */
 export function chunkRows(n: number) {
