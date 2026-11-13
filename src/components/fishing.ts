@@ -3,12 +3,12 @@
 // catch is counted on the server (worker/index.js, POST /api/catch) so authors can see theirs being found.
 import { creatureSrc, tintDeg, traits, depthOf, fmtDepth, type SpeciesId } from '../lib/species';
 
-type Row = [string, number, string, string?, string?, (SpeciesId | 0)?, (string | 0)?];
+type Row = [string, number, string, (string | 0)?, (string | 0)?, (SpeciesId | 0)?, (string | 0)?, (0 | 1)?];
 export type Catch = [name: string, stars: number, species: SpeciesId, hue: number, path: string];
 /** Kept in the visitor's logbook: today's casts, and the last few things they landed. */
 export type FishLog = { day: string; used: number; total: number; mine: Catch[]; recent: number[]; best?: [name: string, stars: number] };
 export type Landed = { key: string; name: string; stars: number; species: SpeciesId; hue: number; rarity: string; path: string };
-type Target = Landed & { index: number; desc: string; depth: number; url: string; repo: string | null; slug: string | null; missed: boolean };
+type Target = Landed & { index: number; desc: string; depth: number; url: string; repo: string | null; slug: string | null; missed: boolean; inst: boolean };
 type Deps = {
   /** The page's translations; `t.fish` holds the fishing strings. */
   t: Record<string, any>;
@@ -27,6 +27,8 @@ type Deps = {
   /** Records a catch in the field guide. */
   landed: (c: Landed) => void;
   post: (path: string, data: unknown) => Promise<Response>;
+  /** Opens the wish bottle form with this text in it. */
+  wish: (text: string) => void;
 };
 
 const CASTS = 5;
@@ -120,13 +122,17 @@ export function initFishing(d: Deps) {
       .catch(() => {});
   }
   function open() {
-    if (state === 'result' || state === 'lost') set('idle');
+    if (state === 'result' || state === 'lost' || state === 'none') set('idle');
     renderSetup();
     d.openSheet('fish-sheet');
   }
   $('fish').addEventListener('click', open);
 
   // ----- who bites -----
+  // Only installable plugins bite, when there are any to choose from: a catch should be something you can use.
+  let instBits: Promise<Uint8Array | null> | null = null;
+  const loadInst = () =>
+    (instBits ??= fetch('/data/inst.json').then((r) => r.json()).then((j: { bits: string }) => Uint8Array.from(atob(j.bits), (ch) => ch.charCodeAt(0))).catch(() => null));
   let baitIndex: Promise<Record<string, number[]>> | null = null;
   const loadBait = () => (baitIndex ??= fetch('/data/bait.json').then((r) => r.json()));
   async function choose(): Promise<Target | null> {
@@ -134,17 +140,23 @@ export function initFishing(d: Deps) {
     const [lo, hi] = water === 'top' ? [0, third] : water === 'mid' ? [third, third * 2] : water === 'deep' ? [third * 2, d.count] : [0, d.count];
     const inWater = (i: number) => i >= lo && i < hi;
     const fresh = (i: number) => !fl.recent.includes(i);
-    let pool: number[] | null = null, missed = false;
+    const bits = await loadInst();
+    const usable = (i: number) => !bits || !!(bits[i >> 3] & (1 << (i & 7)));
+    let pool: number[] | null = null;
+    const missed = false;
     const text = custom.value.trim().toLowerCase();
     if (text) {
       const names = await d.names();
       pool = [];
       for (let i = 0; i < names.length; i++) if (names[i].includes(text)) pool.push(i);
-      if (!pool.length) {
-        pool = null;
-        missed = true;
-      }
-    } else if (bait !== 'any') pool = (await loadBait())[bait] ?? null;
+      const good = pool.filter(usable);
+      if (good.length) pool = good;
+      if (!pool.length) return { missed: true } as Target; // nothing to catch: see cast()
+    } else if (bait !== 'any') {
+      pool = (await loadBait())[bait] ?? null;
+      const good = pool?.filter(usable);
+      if (good?.length) pool = good;
+    }
 
     let index: number;
     if (pool?.length) {
@@ -165,9 +177,11 @@ export function initFishing(d: Deps) {
     } else {
       // No bait: mostly anything at all, with a fair chance of a claimed creature or a giant.
       const roll = Math.random();
-      const near = (set: Set<number>) => [...set].filter((i) => inWater(i) && fresh(i));
+      const near = (set: Set<number>) => [...set].filter((i) => inWater(i) && fresh(i) && usable(i));
       const special = roll < 0.25 ? near(claimed) : roll < 0.35 ? near(giants) : [];
       index = special.length ? pickOne(special) : lo + Math.floor(Math.random() * (hi - lo));
+      // A few tries to land on an installable one.
+      for (let tries = 0; !special.length && !usable(index) && tries < 12; tries++) index = lo + Math.floor(Math.random() * (hi - lo));
     }
     const rows: Row[] = await fetch(`/data/c/${Math.floor(index / d.chunk)}.json`).then((r) => r.json());
     const r = rows[index % d.chunk];
@@ -175,10 +189,10 @@ export function initFishing(d: Deps) {
     const isUrl = r[0].startsWith('http');
     const key = r[0].toLowerCase().replace(/\/$/, '');
     const tr = traits(key, r[1], r[5] || null);
-    const slug = r[3] ?? null, repo = isUrl ? null : r[0];
+    const slug = r[3] || null, repo = isUrl ? null : r[0];
     return {
       index, key, missed, slug, repo, stars: r[1], species: tr.species, hue: tr.hue, rarity: tr.rarity, depth: depthOf(index),
-      name: r[4] ?? r[0].split('/').pop()!, desc: (d.base === '/zh' && r[6]) || r[2] || '',
+      inst: !!r[7], name: r[4] || r[0].split('/').pop()!, desc: (d.base === '/zh' && r[6]) || r[2] || '',
       url: isUrl ? r[0] : `https://github.com/${r[0]}`,
       path: slug ? `${d.base}/p/${slug}` : repo ? `/r/${key}` : d.base || '/',
     };
@@ -200,13 +214,21 @@ export function initFishing(d: Deps) {
     pond.style.setProperty('--pull', '0');
     const picking = choose().catch(() => null);
     void picking.then((tgt) => {
-      if (me !== run || !tgt) return;
+      if (me !== run || !tgt || tgt.missed) return;
       shadow.src = creatureSrc(tgt.species);
       shadow.hidden = false;
-      if (tgt.missed) status(f.noTaker);
     });
     const [tgt] = await Promise.all([picking, sleep(1700 + Math.random() * 2600)]);
     if (me !== run || state !== 'wait') return;
+    if (tgt?.missed) {
+      // Nothing in the sea matches that bait: the cast comes back, and it is a wish worth making.
+      fl.used--;
+      d.save();
+      set('none');
+      $('fish-none-text').textContent = f.noFish.replace('{q}', custom.value.trim());
+      renderSetup();
+      return;
+    }
     if (!tgt) {
       // Nothing was at stake: the cast comes back.
       fl.used--;
@@ -343,6 +365,9 @@ export function initFishing(d: Deps) {
     count.textContent = '';
     ($('fish-visit') as HTMLAnchorElement).href = c.url;
     ($('fish-details') as HTMLAnchorElement).href = c.path;
+    const inst = $('fish-install');
+    inst.hidden = !c.inst || !c.repo;
+    inst.querySelector('code')!.textContent = `dsh plugin --profile tui add github:${c.repo}`;
     const claim = $('fish-claim') as HTMLAnchorElement;
     claim.hidden = !!c.slug || !c.repo;
     claim.href = `${d.base}/submit?repo=${encodeURIComponent(c.repo ?? '')}`;
@@ -373,6 +398,15 @@ export function initFishing(d: Deps) {
     d.jump(cur.index);
   });
   $('fish-cast').addEventListener('click', () => void cast());
+  $('fish-rebait').addEventListener('click', () => {
+    set('idle');
+    custom.focus();
+  });
+  $('fish-wish').addEventListener('click', () => {
+    const q = custom.value.trim();
+    set('idle');
+    d.wish(`${d.t.bottlePlaceholder.replace(/[….]+$/, '')} ${q}`);
+  });
   for (const el of sheet.querySelectorAll('[data-again]')) el.addEventListener('click', () => void cast());
   // Closing the panel mid-cast abandons that cast.
   sheet.querySelector('[data-close]')!.addEventListener('click', () => {

@@ -41,10 +41,10 @@ const payload = {
     evolve: t.evolve('{n}', '{rarity}'), evolveMax: t.evolveMax,
     bounty: t.bounty, bountyIn: t.bountyIn, bountyDone: t.bountyDone, clueZone: t.clueZone, clueName: t.clueName,
     bountyFound: t.bountyFound, bountyStreak: t.bountyStreak, bountyToast: t.bountyToast, bountyTweet: t.bountyTweet,
-    bottleSent: t.bottleSent, bottleFound: t.bottleFound, bottleReported: t.bottleReported, bottleErr: t.bottleErr,
+    bottleSent: t.bottleSent, bottleFound: t.bottleFound, bottleReported: t.bottleReported, bottleErr: t.bottleErr, wishMeToo: t.wishMeToo, wishVoted: t.wishVoted, wishCount: t.wishCount,
     boardYou: t.boardYou, boardEmpty: t.boardEmpty, boardErr: t.boardErr, boardLoading: t.boardLoading, boardFail: t.boardFail, logSeen: t.logSeen, boardLanded: t.boardLanded, boardBest: t.boardBest,
     shareTweet: t.shareTweet('{name}', '{species}', '{depth}'),
-    fish: t.fish,
+    fish: t.fish, bottlePlaceholder: t.bottlePlaceholder,
   },
 };
 const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet(fmtDepth(seabed)))}&url=${encodeURIComponent('https://dshsea.com' + href(lang, '/'))}`;
@@ -183,6 +183,7 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
       </div>
       <p id="fish-desc"></p>
       <p id="fish-count"></p>
+      <div id="fish-install" class="install" hidden><code></code><button type="button" data-copy>{t.copy2}</button></div>
       <div class="actions">
         <a id="fish-visit" class="btn" target="_blank" rel="noopener">{t.visit} ↗</a>
         <a id="fish-share" class="btn alt" target="_blank" rel="noopener">{t.share}</a>
@@ -192,6 +193,13 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
       </div>
       <a id="fish-claim" class="claim" hidden>{t.claim} →</a>
       <button class="btn ghost again" type="button" data-again>{f.again}</button>
+    </div>
+    <div class="fish-none">
+      <p id="fish-none-text" class="result"></p>
+      <div class="actions">
+        <button id="fish-wish" class="btn" type="button">{f.wishInstead}</button>
+        <button id="fish-rebait" class="btn ghost" type="button">{f.changeBait}</button>
+      </div>
     </div>
     <div class="fish-lost">
       <p id="fish-lost-text" class="result"></p>
@@ -231,6 +239,10 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
     <button class="x" data-close aria-label={t.close}>×</button>
     <p class="sub" id="bottle-where"></p>
     <blockquote id="bottle-text"></blockquote>
+    <div class="actions wish-actions">
+      <button id="bottle-vote" class="btn" type="button">{t.wishMeToo}</button>
+      <a class="btn ghost" href={href(lang, '/wishes')}>{t.wishesTitle} →</a>
+    </div>
     <p class="by"><span id="bottle-by"></span> <button id="bottle-report" type="button">{t.bottleReport}</button></p>
   </section>
   <button class="logbook" id="logbook" type="button" title={t.dexTitle}>
@@ -280,6 +292,7 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
     </div>
     <p id="card-desc"></p>
     <p id="card-evolve"></p>
+    <div id="card-install" class="install" hidden><code></code><button type="button" data-copy>{t.copy2}</button></div>
     <dl>
       <div><dt>{t.depth}</dt><dd id="card-depth"></dd></div>
       <div><dt>{t.stars}</dt><dd id="card-stars"></dd></div>
@@ -487,11 +500,15 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   #board-list :global(li b) { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #board-list :global(li:nth-child(-n + 3))::before { color: var(--gold); font-weight: 700; }
   #board-list :global(li.me) { background: rgba(110, 243, 214, 0.1); }
+  .install { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; padding: 8px 8px 8px 12px; border-radius: 12px; background: rgba(2, 7, 20, 0.6); border: 1px solid var(--line); }
+  .install code { flex: 1; min-width: 0; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: #c9f7ec; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+  .install button { flex: none; font: 500 12px var(--body); color: var(--text); cursor: pointer; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); border: 0; }
+  .install button:hover { background: rgba(255, 255, 255, 0.2); }
   /* ----- fishing ----- */
   #fish-sheet { width: min(620px, calc(100vw - 24px)); }
   #fish-left { color: var(--glow); font-weight: 600; white-space: nowrap; }
   #fish-sheet > div { display: none; }
-  #fish-sheet[data-state='idle'] .fish-setup, #fish-sheet[data-state='result'] .fish-result, #fish-sheet[data-state='lost'] .fish-lost { display: block; }
+  #fish-sheet[data-state='idle'] .fish-setup, #fish-sheet[data-state='result'] .fish-result, #fish-sheet[data-state='lost'] .fish-lost, #fish-sheet[data-state='none'] .fish-none { display: block; }
   #fish-sheet[data-state='wait'] .fish-play, #fish-sheet[data-state='bite'] .fish-play, #fish-sheet[data-state='reel'] .fish-play { display: block; }
   .fish-setup h3:first-child { margin-top: 8px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -565,6 +582,9 @@ const eggShare = `https://x.com/intent/post?text=${encodeURIComponent(t.eggTweet
   .fish-result .claim { display: block; font-size: 13px; color: var(--glow); text-decoration: none; margin-top: 12px; }
   .fish-result .again { margin-top: 18px; }
   .fish-lost { text-align: center; padding: 30px 0 10px; }
+  .fish-none { padding: 20px 0 6px; }
+  .wish-actions { margin-bottom: 18px; align-items: center; }
+  #bottle-vote:disabled { cursor: default; transform: none; box-shadow: none; color: var(--glow); background: rgba(110, 243, 214, 0.12); }
   @media (prefers-reduced-motion: reduce) { #fish-pond .bobber, #fish-shadow, #fish-img, #fish-act { animation: none !important; } }
   .sheet {
     position: fixed; z-index: 40; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 24px)); max-height: calc(100dvh - 48px); overflow: auto;

@@ -77,7 +77,7 @@ async function api(request, env, url) {
   if (route === 'GET /api/bottles') {
     const band = int(url.searchParams.get('band'), 1e6);
     const { results } = await db
-      .prepare('SELECT id, depth, text, name, created FROM bottles WHERE hidden = 0 AND depth >= ? AND depth < ? ORDER BY created DESC LIMIT 60')
+      .prepare('SELECT id, depth, text, name, created, votes FROM bottles WHERE hidden = 0 AND depth >= ? AND depth < ? ORDER BY created DESC LIMIT 60')
       .bind(band * BAND, (band + 1) * BAND).all();
     return json(results, 200, { 'Cache-Control': 'public, max-age=30' });
   }
@@ -93,7 +93,28 @@ async function api(request, env, url) {
     if (n >= 5) return json({ error: 'limit' }, 429);
     const created = now();
     const res = await db.prepare('INSERT INTO bottles (depth, text, name, created, iph) VALUES (?, ?, ?, ?, ?)').bind(depth, text, name, created, iph).run();
-    return json({ id: res.meta.last_row_id, depth, text, name, created });
+    return json({ id: res.meta.last_row_id, depth, text, name, created, votes: 0 });
+  }
+  // A bottle is a wish for a plugin; "me too" votes rank the wishes.
+  if (route === 'GET /api/wishes') {
+    const { results } = await db
+      .prepare('SELECT id, depth, text, name, created, votes FROM bottles WHERE hidden = 0 ORDER BY votes DESC, created DESC LIMIT 60').all();
+    return json(results, 200, { 'Cache-Control': 'no-store' });
+  }
+  if (route === 'POST /api/bottles/vote') {
+    const id = int(body.id, 1e12);
+    const iph = await ipHash(request);
+    const day = Math.floor(now() / DAY);
+    // One vote per wish per visitor, and at most 30 votes a day.
+    const { n } = await db.prepare('SELECT COUNT(*) AS n FROM wish_votes WHERE iph = ?').bind(iph).first();
+    const exists = await db.prepare('SELECT 1 AS x FROM bottles WHERE id = ? AND hidden = 0').bind(id).first();
+    if (!exists) return json({ error: 'not found' }, 404);
+    if (n < 30 && (await db.prepare('INSERT OR IGNORE INTO wish_votes (iph, id, day) VALUES (?, ?, ?)').bind(iph, id, day).run()).meta.changes > 0) {
+      await db.prepare('UPDATE bottles SET votes = votes + 1 WHERE id = ?').bind(id).run();
+      if (Math.random() < 0.02) await db.prepare('DELETE FROM wish_votes WHERE day < ?').bind(day - 1).run();
+    }
+    const row = await db.prepare('SELECT votes FROM bottles WHERE id = ?').bind(id).first();
+    return json({ votes: row?.votes ?? 0 });
   }
   if (route === 'POST /api/bottles/report') {
     // Three reports take a bottle out of the water until someone looks at it.
@@ -204,6 +225,10 @@ export default {
         if (page.P) return Response.redirect(`${url.origin}/p/${page.P}`, 301);
         if (path !== `/r/${key}`) return Response.redirect(`${url.origin}/r/${key}`, 301);
         return render(env, url, '/r/_template/', page, {
+          // Keep in step with the `install` markup in src/pages/r/[...repo].astro.
+          INSTALL: page.I
+            ? `<h2>Install</h2><p class="lede">This repo declares a DSH bundle. Swap <code>tui</code> for the profile you use:</p><pre class="code">${esc(`dsh plugin --profile tui add github:${page.REPO}`)}</pre>`
+            : `<p class="fine">No DSH bundle was found at the root of this repo, so it may not install as a plugin.</p>`,
           NEIGHBOURS: page.N.map((r) => `<li><a href="/r/${esc(r.toLowerCase())}">${esc(r)}</a></li>`).join(''),
           JSON_LD: JSON.stringify({
             '@context': 'https://schema.org', '@type': 'SoftwareSourceCode', name: page.NAME, description: page.DESC,

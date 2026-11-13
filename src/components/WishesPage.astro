@@ -1,0 +1,155 @@
+---
+// The wishes divers have left in bottles, most wanted first: plugins that do not exist yet.
+// The same bottles float in the ocean (src/components/ocean3d.ts); votes are kept by worker/index.js.
+import Base from '../layouts/Base.astro';
+import { dict, href, type Lang } from '../lib/i18n';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = dict(lang);
+const strings = {
+  meToo: t.wishMeToo, voted: t.wishVoted, count: t.wishCount, empty: t.wishesEmpty, fail: t.wishesFail, see: t.wishSee, by: t.wishBy,
+  err: t.bottleErr, home: href(lang, '/'),
+};
+---
+<Base lang={lang} path="/wishes" title={t.wishesTitle} description={t.wishesSub}>
+  <main class="page">
+    <h1>{t.wishesTitle}</h1>
+    <p class="lede">{t.wishesSub}</p>
+    <form id="wish-form">
+      <textarea name="text" maxlength="140" rows="2" required placeholder={t.bottlePlaceholder}></textarea>
+      <div class="row">
+        <input name="name" maxlength="20" placeholder={t.bottleName} autocomplete="nickname" />
+        <button class="btn">{t.bottleSend}</button>
+      </div>
+      <p id="wish-error" class="error" hidden></p>
+    </form>
+    <ol id="wishes"><li class="note">{t.boardLoading}</li></ol>
+    <p class="fine"><a href={href(lang, '/submit')}>{t.wishBuilt} →</a></p>
+  </main>
+  <script type="application/json" id="wish-strings" set:html={JSON.stringify(strings)} />
+  <script>
+    const t = JSON.parse(document.getElementById('wish-strings')!.textContent!);
+    const KEY = 'dshsea-log-v1'; // the logbook kept by the ocean; `wishes` holds the ids this visitor voted for
+    const $ = (id: string) => document.getElementById(id)!;
+    const fmt = (n: number) => n.toLocaleString('en-US');
+    const depthText = (m: number) => (m < 10000 ? `${fmt(m)} m` : `${(m / 1000).toLocaleString('en-US', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km`);
+    type Wish = { id: number; depth: number; text: string; name: string; created: number; votes: number };
+    const readLog = (): Record<string, any> => {
+      try {
+        return JSON.parse(localStorage.getItem(KEY) ?? '{}');
+      } catch {
+        return {};
+      }
+    };
+    const voted = () => new Set<number>(readLog().wishes ?? []);
+    const remember = (id: number) => {
+      const log = readLog();
+      log.wishes = [...(log.wishes ?? []), id].slice(-500);
+      try {
+        localStorage.setItem(KEY, JSON.stringify(log));
+      } catch {
+        /* private mode */
+      }
+    };
+    const post = (path: string, data: unknown) =>
+      fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+
+    function item(w: Wish, mine: Set<number>) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const paint = () => {
+        btn.disabled = mine.has(w.id);
+        btn.title = mine.has(w.id) ? t.voted : t.meToo;
+        btn.innerHTML = `<b>${fmt(w.votes)}</b><span>${mine.has(w.id) ? '✓' : '+1'}</span>`;
+      };
+      paint();
+      btn.addEventListener('click', async () => {
+        if (mine.has(w.id)) return;
+        mine.add(w.id);
+        remember(w.id);
+        w.votes++;
+        paint();
+        const res = await post('/api/bottles/vote', { id: w.id }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        if (res) {
+          w.votes = res.votes;
+          paint();
+        }
+      });
+      const body = document.createElement('div');
+      const text = document.createElement('p');
+      text.textContent = w.text;
+      const meta = document.createElement('small');
+      const see = document.createElement('a');
+      see.href = `${t.home}?d=${Math.max(0, w.depth - 2)}`;
+      see.textContent = `${t.see} · ${depthText(w.depth)}`;
+      meta.append(`${t.by.replace('{name}', w.name)} · ${new Date(w.created * 1000).toLocaleDateString()} · `, see);
+      body.append(text, meta);
+      li.append(btn, body);
+      return li;
+    }
+    async function render() {
+      const list = $('wishes');
+      try {
+        const res = await fetch('/api/wishes', { cache: 'no-store' });
+        if (!res.ok || !res.headers.get('content-type')?.includes('json')) throw new Error();
+        const rows: Wish[] = await res.json();
+        const mine = voted();
+        list.replaceChildren(...rows.map((w) => item(w, mine)));
+        if (!rows.length) list.innerHTML = `<li class="note">${t.empty}</li>`;
+      } catch {
+        list.innerHTML = `<li class="note">${t.fail}</li>`;
+      }
+    }
+    const form = $('wish-form') as HTMLFormElement;
+    (form.elements.namedItem('name') as HTMLInputElement).value = readLog().board?.name ?? '';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      let error = 'other';
+      try {
+        // Wishes made here float somewhere in the first few kilometres, where most divers pass.
+        const res = await post('/api/bottles', { depth: 300 + Math.floor(Math.random() * 2400), text: data.get('text'), name: data.get('name') });
+        const body = await res.json();
+        if (res.ok) {
+          (form.elements.namedItem('text') as HTMLTextAreaElement).value = '';
+          $('wish-error').hidden = true;
+          return void render();
+        }
+        error = body.error in t.err ? body.error : 'other';
+      } catch {
+        /* network error: generic message */
+      }
+      $('wish-error').textContent = t.err[error];
+      $('wish-error').hidden = false;
+    });
+    void render();
+  </script>
+</Base>
+
+<style>
+  form { display: grid; gap: 10px; max-width: 760px; margin-bottom: 30px; }
+  textarea, input { font: 16px var(--body); color: var(--text); background: rgba(8, 18, 42, 0.6); border: 1px solid var(--line-strong); border-radius: 16px; padding: 12px 18px; outline: none; resize: none; width: 100%; }
+  textarea:focus, input:focus { border-color: var(--glow); }
+  .row { display: flex; gap: 10px; }
+  .row input { flex: 1; min-width: 0; border-radius: 999px; }
+  .row .btn { flex: none; white-space: nowrap; }
+  .error { color: #ff9c9c; font-size: 14px; margin: 0; }
+  ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; max-width: 760px; }
+  ol :global(li) { display: flex; gap: 16px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+  ol :global(li.note) { color: var(--dim); }
+  ol :global(li button) {
+    flex: none; width: 58px; padding: 8px 0; display: grid; gap: 2px; justify-items: center; cursor: pointer; color: var(--text);
+    border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.06); font: 500 12px var(--body);
+  }
+  ol :global(li button b) { font-family: var(--display); font-size: 24px; font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; }
+  ol :global(li button:hover:not(:disabled)) { border-color: var(--glow); color: var(--glow); }
+  ol :global(li button:disabled) { cursor: default; color: var(--glow); border-color: rgba(110, 243, 214, 0.5); background: rgba(110, 243, 214, 0.08); }
+  ol :global(li div) { min-width: 0; }
+  ol :global(li p) { margin: 0 0 4px; font-size: 17px; overflow-wrap: anywhere; }
+  ol :global(li small) { color: var(--dim); font-size: 13px; }
+  ol :global(li small a) { color: var(--sky); text-underline-offset: 3px; }
+  .fine { margin-top: 26px; font-size: 14px; }
+  .fine a { color: var(--glow); text-underline-offset: 3px; }
+</style>

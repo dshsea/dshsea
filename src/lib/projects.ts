@@ -8,13 +8,15 @@ import { dict } from './i18n';
 export type Entry = {
   key: string; name: string; repo: string | null; url: string; stars: number; created: string;
   desc: string; descZh: string | null; slug: string | null; pick: SpeciesId | null; category: string | null;
+  /** The repo declares a DSH bundle, so `dsh plugin add` can install it (data/bundles.json). */
+  inst: boolean;
 };
 /** A claimed project: it has its own page, share card and badge. */
 export type Project = {
   slug: string; name: string; repo: string | null; url: string; category: string;
   description: string; descriptionZh: string | null; author: string | null; x: string | null;
   added: string; created: string; stars: number;
-  key: string; index: number; depth: number; rarity: Rarity; hue: number; seed: number; species: SpeciesId;
+  key: string; index: number; depth: number; rarity: Rarity; hue: number; seed: number; species: SpeciesId; inst: boolean;
 };
 
 export const CHUNK = 400;
@@ -27,11 +29,14 @@ function build() {
   const wildFile = path.join(root, 'data', 'wild.json');
   const wild: [string, number, string, string][] = fs.existsSync(wildFile) ? JSON.parse(fs.readFileSync(wildFile, 'utf8')) : [];
 
+  const bundleFile = path.join(root, 'data', 'bundles.json');
+  const bundles: Record<string, [string, string | 0]> = fs.existsSync(bundleFile) ? JSON.parse(fs.readFileSync(bundleFile, 'utf8')) : {};
+  const inst = (key: string) => !!bundles[key]?.[1];
   const map = new Map<string, Entry>();
   for (const [full, stars, created, desc] of wild) {
     map.set(full.toLowerCase(), {
       key: full.toLowerCase(), name: full.split('/')[1], repo: full, url: `https://github.com/${full}`,
-      stars, created, desc, descZh: null, slug: null, pick: null, category: null,
+      stars, created, desc, descZh: null, slug: null, pick: null, category: null, inst: inst(full.toLowerCase()),
     });
   }
   const bySlug = new Map<string, any>();
@@ -41,7 +46,7 @@ function build() {
     bySlug.set(p.slug, p);
     map.set(key, {
       key, name: p.name, repo: p.repo, url: p.url, stars: w?.stars ?? p.stars, created: w?.created ?? p.created,
-      desc: p.description, descZh: p.descriptionZh, slug: p.slug, pick: p.species, category: p.category,
+      desc: p.description, descZh: p.descriptionZh, slug: p.slug, pick: p.species, category: p.category, inst: inst(key),
     });
   }
   // Newest first: index 0 swims just under the surface, the oldest project is the deepest.
@@ -53,7 +58,7 @@ function build() {
     projects.push({
       slug: p.slug, name: p.name, repo: p.repo, url: p.url, category: p.category,
       description: p.description, descriptionZh: p.descriptionZh, author: p.author, x: p.x, added: p.added,
-      created: e.created, stars: e.stars, key: e.key, index, depth: depthOf(index), ...traits(e.key, e.stars, e.pick),
+      created: e.created, stars: e.stars, key: e.key, index, depth: depthOf(index), inst: e.inst, ...traits(e.key, e.stars, e.pick),
     });
   });
   return { entries, projects };
@@ -71,12 +76,15 @@ export const REEF_SIZE = 8;
 export const getFresh = () =>
   [...getProjects()].sort((a, b) => b.added.localeCompare(a.added) || b.stars - a.stars || a.slug.localeCompare(b.slug)).slice(0, REEF_SIZE);
 
-/** A chunk of the ocean as the browser receives it. Wild rows are [repo, stars, desc]; claimed rows carry more. */
+/**
+ * A chunk of the ocean as the browser receives it. Wild rows are [repo, stars, desc]; claimed rows carry more.
+ * The eighth element is 1 when the repo is installable; wild rows are padded with zeros to reach it.
+ */
 export function chunkRows(n: number) {
   return getCatalog().entries.slice(n * CHUNK, (n + 1) * CHUNK).map((e) =>
     e.slug
-      ? [e.repo ?? e.url, e.stars, e.desc, e.slug, e.name, e.pick ?? 0, e.descZh ?? 0]
-      : [e.repo, e.stars, e.desc],
+      ? [e.repo ?? e.url, e.stars, e.desc, e.slug, e.name, e.pick ?? 0, e.descZh ?? 0, e.inst ? 1 : 0]
+      : e.inst ? [e.repo, e.stars, e.desc, 0, 0, 0, 0, 1] : [e.repo, e.stars, e.desc],
   );
 }
 
@@ -90,6 +98,8 @@ export type RepoPage = {
   N: string[];
   /** Slug, when the repo has been claimed: its page lives at /p/<slug> instead. */
   P?: string;
+  /** 1 when the repo is installable. */
+  I?: 1;
 };
 const en = dict('en');
 const DATE = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
@@ -111,7 +121,7 @@ export function repoPage(index: number): RepoPage | null {
     DEPTH: fmtDepth(depth), ZONE: en.zones[zoneFor(depth)], SPECIES: tr.species, SPECIES_NAME: en.speciesNames[tr.species],
     RARITY: tr.rarity, RARITY_NAME: en.rarityNames[tr.rarity], TINT: String(tintDeg(tr.hue)), HUE: String(tr.hue),
     EVOLVE: evolveText(e.stars),
-    N, ...(e.slug ? { P: e.slug } : {}),
+    N, ...(e.slug ? { P: e.slug } : {}), ...(e.inst ? { I: 1 as const } : {}),
   };
 }
 export function evolveText(stars: number, lang: 'en' | 'zh' = 'en') {
@@ -152,6 +162,18 @@ export function ownerPages(): Map<string, OwnerPage> {
     });
   }
   return owners;
+}
+
+/** The command that installs a repo as a DSH plugin. `tui` is the profile most people run. */
+export const installCmd = (repo: string) => `dsh plugin --profile tui add github:${repo}`;
+/** Which creatures are installable, one bit per index, base64: the browser's fishing reads it. */
+export function installBits() {
+  const { entries } = getCatalog();
+  const bytes = new Uint8Array(Math.ceil(entries.length / 8));
+  entries.forEach((e, i) => {
+    if (e.inst) bytes[i >> 3] |= 1 << (i & 7);
+  });
+  return Buffer.from(bytes).toString('base64');
 }
 
 /** Where a creature's own page lives. */

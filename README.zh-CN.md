@@ -19,7 +19,7 @@
 | [![](docs/owner-card.jpg)](https://dshsea.com/u) | [![](docs/repo-page.jpg)](https://dshsea.com/r/victorgol/dsh-wallpaper) |
 | **你的 GitHub 里住着什么？** `dshsea.com/u/<你>` 汇总你的所有生物，并生成一张可分享的卡片。 | **每个插件都有一页。** 所有带 `dsh-plugin` topic 的仓库都有 `dshsea.com/r/owner/repo`，并链接回仓库。 |
 
-海里还有**漂流瓶**（在任意深度给下一个潜水员留一句话）和**拍照模式**（按 `P`），把眼前的画面变成带说明的图片。
+海里还有**钓鱼**（按需求选饵、抛竿、收线，钓上来一个可安装的插件；每个仓库页都显示它被钓起过多少次）、**许愿瓶**（许愿一个还不存在的插件，给别人的愿望投票，看[最想要的插件](https://dshsea.com/zh/wishes)）和**拍照模式**（按 `P`），把眼前的画面变成带说明的图片。
 
 ## 生物从哪来
 

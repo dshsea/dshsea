@@ -19,7 +19,7 @@ Every DeepSeek Harness plugin is a creature somewhere in a bottomless ocean: mor
 | [![](docs/owner-card.jpg)](https://dshsea.com/u) | [![](docs/repo-page.jpg)](https://dshsea.com/r/victorgol/dsh-wallpaper) |
 | **What lives in your GitHub?** `dshsea.com/u/<you>` gathers all of your creatures and draws a card to share. | **A page for every plugin.** `dshsea.com/r/owner/repo` exists for every repo tagged `dsh-plugin`, with a link back to it. |
 
-Also in the water: **bottles** (leave a note at any depth for the next diver) and a **photo mode** (`P`) that turns what you see into a captioned picture.
+Also in the water: **fishing** (pick a bait for what you need, cast, and reel in one installable plugin; every repo page shows how often it has been hooked), **wish bottles** (wish for a plugin that does not exist yet, vote on other people's, and see the [most wanted](https://dshsea.com/wishes)), and a **photo mode** (`P`) that turns what you see into a captioned picture.
 
 ## How it fills up
 

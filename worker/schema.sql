@@ -8,7 +8,16 @@ CREATE TABLE IF NOT EXISTS bottles (
   created INTEGER NOT NULL,        -- unix seconds
   iph TEXT NOT NULL,               -- daily-rotating hash of the sender's IP, for rate limiting only
   reports INTEGER NOT NULL DEFAULT 0,
-  hidden INTEGER NOT NULL DEFAULT 0 -- set to 1 to take a bottle down
+  hidden INTEGER NOT NULL DEFAULT 0, -- set to 1 to take a bottle down
+  votes INTEGER NOT NULL DEFAULT 0   -- a bottle is a wish for a plugin; these are the "me too"s
+);
+-- A database created before wishes needs: ALTER TABLE bottles ADD COLUMN votes INTEGER NOT NULL DEFAULT 0;
+-- One row per visitor per wish per day (the IP hash rotates daily, so a vote can repeat on another day).
+CREATE TABLE IF NOT EXISTS wish_votes (
+  iph TEXT NOT NULL,
+  id INTEGER NOT NULL,
+  day INTEGER NOT NULL,
+  PRIMARY KEY (iph, id)
 );
 CREATE INDEX IF NOT EXISTS bottles_depth ON bottles (depth);
 CREATE INDEX IF NOT EXISTS bottles_iph ON bottles (iph, created);

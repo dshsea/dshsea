@@ -13,11 +13,11 @@ import {
   haloTexture, lampTexture, pingTexture, labelTexture, labelMaterial, createSound,
 } from './ocean-env';
 
-type Row = [string, number, string, string?, string?, (SpeciesId | 0)?, (string | 0)?];
+type Row = [string, number, string, (string | 0)?, (string | 0)?, (SpeciesId | 0)?, (string | 0)?, (0 | 1)?];
 type Screen = { x: number; y: number; r: number; d: number } | null;
 type Creature = {
   index: number; key: string; name: string; desc: string; stars: number; depth: number; url: string; repo: string | null;
-  slug: string | null; species: SpeciesId; rarity: string; hue: number;
+  slug: string | null; species: SpeciesId; rarity: string; hue: number; inst: boolean;
   group: THREE.Group; mesh: THREE.Mesh; mat: THREE.ShaderMaterial; halo: THREE.Sprite; label: THREE.Sprite;
   base: THREE.Vector3; az: number; frac: number; size: number; shape: THREE.Vector3; phase: number; speed: number; swims: boolean;
   hay: string; near: number; revealAt: number; spinAt: number; known: boolean; screen: Screen;
@@ -192,6 +192,8 @@ export async function initOcean3D() {
     /** Leaderboard identity: a random id kept in this browser, and the chosen name. */
     board: { id: string; name: string };
     fish: FishLog;
+    /** Wishes this visitor has voted for (bottle ids). Shared with the /wishes page. */
+    wishes?: number[];
   };
   let log: Log = { seen: {}, species: {}, rarity: {}, best: [], ach: {}, deepest: 0, bounty: { day: '', start: 0, ms: 0, streak: 0, last: '' }, board: { id: '', name: '' }, fish: { day: '', used: 0, total: 0, mine: [], recent: [] } };
   try {
@@ -324,6 +326,17 @@ export async function initOcean3D() {
     renderDex();
     openSheet('dex');
   });
+  // Install commands: one click copies the command next to the button.
+  document.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLElement>('[data-copy]');
+    const code = b?.parentElement?.querySelector('code');
+    if (!b || !code) return;
+    void navigator.clipboard?.writeText(code.textContent ?? '').then(() => {
+      const label = b.textContent;
+      b.textContent = '✓';
+      setTimeout(() => (b.textContent = label), 1200);
+    });
+  });
   /** Only one sheet at a time. */
   function openSheet(id: string) {
     for (const el of document.querySelectorAll<HTMLElement>('.sheet')) el.hidden = el.id !== id;
@@ -358,7 +371,7 @@ export async function initOcean3D() {
     const stars = row[1];
     const tr = traits(key, stars, row[5] || null);
     const spec = SPECIES[tr.species];
-    const name = row[4] ?? repoOrUrl.split('/').pop()!;
+    const name = row[4] || repoOrUrl.split('/').pop()!;
     const desc = (payload.base === '/zh' && row[6]) || row[2] || '';
     const phase = (tr.hue / 360) * Math.PI * 2;
     const mat = creatureMaterial(G, tr.species, tr.hue, phase, reduced, tr.seed);
@@ -385,8 +398,8 @@ export async function initOcean3D() {
     group.add(halo, label);
     scene.add(group);
     const c: Creature = {
-      index, key, name, desc, stars, pin, depth: depthOf(pin === null ? index : payload.claimed[row[3]!] ?? 0), url: isUrl ? repoOrUrl : `https://github.com/${repoOrUrl}`, repo: isUrl ? null : repoOrUrl,
-      slug: row[3] ?? null, species: tr.species, rarity: tr.rarity, hue: tr.hue,
+      index, key, name, desc, stars, pin, depth: depthOf(pin === null ? index : payload.claimed[row[3] as string] ?? 0), url: isUrl ? repoOrUrl : `https://github.com/${repoOrUrl}`, repo: isUrl ? null : repoOrUrl,
+      slug: row[3] || null, species: tr.species, rarity: tr.rarity, hue: tr.hue, inst: !!row[7],
       group, mesh, mat, halo, label, base: new THREE.Vector3(), az: 0, frac: frac(index * 0.7548776662), size, shape, phase,
       speed: 0.2 + ((tr.hue * 7) % 100) / 520, swims: spec.swims, near: 0, revealAt: -99, spinAt: -99, known: !!log.seen[key], screen: null,
       hay: `${repoOrUrl} ${name} ${desc} ${tr.species} ${t.speciesNames[tr.species]}`.toLowerCase(),
@@ -958,7 +971,7 @@ export async function initOcean3D() {
     if (!bountyRow) return;
     const repo = bountyRow[0];
     const tr = traits(repo.toLowerCase().replace(/\/$/, ''), bountyRow[1], bountyRow[5] || null);
-    const name = bountyRow[4] ?? repo.split('/').pop()!;
+    const name = bountyRow[4] || repo.split('/').pop()!;
     const found = log.bounty.ms > 0;
     const img = $<HTMLImageElement>('bounty-img');
     img.src = creatureSrc(tr.species);
@@ -1016,7 +1029,7 @@ export async function initOcean3D() {
   });
 
   // ----- bottles and leaderboard: the two things that talk to the server (worker/index.js) -----
-  type Bottle = { id: number; depth: number; text: string; name: string; created: number };
+  type Bottle = { id: number; depth: number; text: string; name: string; created: number; votes?: number };
   type LiveBottle = { b: Bottle; group: THREE.Group; sprite: THREE.Sprite; y: number; phase: number; screen: Screen };
   const BOTTLE_BAND = 20000;
   const bottleBands = new Map<number, Bottle[] | null>();
@@ -1111,9 +1124,31 @@ export async function initOcean3D() {
     $('bottle-where').textContent = t.bottleFound.replace('{d}', fmtDepth(lb.b.depth));
     $('bottle-text').textContent = lb.b.text;
     $('bottle-by').textContent = `— ${lb.b.name}, ${new Date(lb.b.created * 1000).toLocaleDateString()}`;
+    renderVote();
     openSheet('bottle-read');
     sound.blip();
   }
+  function renderVote() {
+    if (!reading) return;
+    const voted = (log.wishes ?? []).includes(reading.id), n = reading.votes ?? 0;
+    const btn = $<HTMLButtonElement>('bottle-vote');
+    btn.disabled = voted;
+    btn.textContent = `${voted ? t.wishVoted : t.wishMeToo}${n ? ` · ${t.wishCount.replace('{n}', fmt(n))}` : ''}`;
+  }
+  $('bottle-vote').addEventListener('click', () => {
+    const b = reading;
+    if (!b || (log.wishes ?? []).includes(b.id)) return;
+    log.wishes = [...(log.wishes ?? []), b.id].slice(-500);
+    b.votes = (b.votes ?? 0) + 1;
+    logDirty = true;
+    renderVote();
+    void post('/api/bottles/vote', { id: b.id }).then((r) => (r.ok ? r.json() : null)).then((res) => {
+      if (res && reading === b) {
+        b.votes = res.votes;
+        renderVote();
+      }
+    }).catch(() => {});
+  });
   const post = (path: string, data: unknown) =>
     fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   $('bottle-report').addEventListener('click', () => {
@@ -1136,7 +1171,8 @@ export async function initOcean3D() {
   bottleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = new FormData(bottleForm);
-    const depth = Math.round(Math.max(camDepth, 0));
+    // A wish made from the surface still needs somewhere to float.
+    const depth = camDepth > 40 ? Math.round(camDepth) : 300 + Math.floor(Math.random() * 2400);
     let error = 'other';
     try {
       const res = await post('/api/bottles', { depth, text: data.get('text'), name: data.get('name') });
@@ -1458,6 +1494,9 @@ export async function initOcean3D() {
     const details = $('card-details') as HTMLAnchorElement;
     details.textContent = t.details;
     details.href = page;
+    const inst = $('card-install');
+    inst.hidden = !c.inst || !c.repo;
+    inst.querySelector('code')!.textContent = `dsh plugin --profile tui add github:${c.repo}`;
     const claim = $('card-claim') as HTMLAnchorElement;
     claim.hidden = !!c.slug || !c.repo;
     claim.href = `${payload.base}/submit?repo=${encodeURIComponent(c.repo ?? '')}`;
@@ -1530,6 +1569,11 @@ export async function initOcean3D() {
     save: () => (logDirty = true),
     bonus: () => (log.bounty.day === today && log.bounty.ms ? 2 : 0),
     toast, blip: () => sound.blip(), openSheet, jump, post,
+    wish(text) {
+      $('bottle-error').hidden = true;
+      (bottleForm.elements.namedItem('text') as HTMLTextAreaElement).value = text;
+      openSheet('bottle-write');
+    },
     names: () => loadNames().then(() => namesLower),
     landed(c) {
       const liveOne = [...live.values()].find((x) => x.key === c.key);

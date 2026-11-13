@@ -4,7 +4,7 @@
 // page once, as a template full of __TOKENS__, and worker/index.js fills it in per request.
 // `astro dev` (and STATIC_REPO_PAGES=1 builds) render every repo directly instead.
 import Base from '../../layouts/Base.astro';
-import { getCatalog, repoPage, REPO_URL, SITE, type RepoPage } from '../../lib/projects';
+import { getCatalog, repoPage, installCmd, REPO_URL, SITE, type RepoPage } from '../../lib/projects';
 
 export function getStaticPaths() {
   if (import.meta.env.DEV || process.env.STATIC_REPO_PAGES) {
@@ -26,6 +26,12 @@ const jsonLd = template
       '@context': 'https://schema.org', '@type': 'SoftwareSourceCode', name: p.NAME, description: p.DESC,
       codeRepository: `https://github.com/${p.REPO}`, author: { '@type': 'Person', name: p.OWNER, url: `https://github.com/${p.OWNER}` },
     }).replace(/</g, '\\u003c');
+// Keep the markup in step with installBlock() in worker/index.js.
+const install = template
+  ? '__INSTALL__'
+  : p.I
+    ? `<h2>Install</h2><p class="lede">This repo declares a DSH bundle. Swap <code>tui</code> for the profile you use:</p><pre class="code">${esc(installCmd(p.REPO))}</pre>`
+    : `<p class="fine">No DSH bundle was found at the root of this repo, so it may not install as a plugin.</p>`;
 const badge = `[![${p.NAME} on dshsea](${SITE}/badge.svg)](${SITE}/r/${p.KEY})`;
 const hookBadge = `[![${p.NAME} hooked on dshsea](${SITE}/api/badge/${p.KEY}.svg)](${SITE}/r/${p.KEY})`;
 ---
@@ -66,6 +72,8 @@ const hookBadge = `[![${p.NAME} hooked on dshsea](${SITE}/api/badge/${p.KEY}.svg
       In the dshsea ocean, where every dsh plugin is a sea creature, it is a {p.RARITY_NAME} {p.SPECIES_NAME} living {p.DEPTH} below the surface, in the region known as “{p.ZONE}”.
       Older plugins live deeper; stars decide how big a creature grows.
     </p>
+
+    <Fragment set:html={install} />
 
     <h2>Neighbours</h2>
     <p class="lede">The plugins swimming just above and below.</p>
