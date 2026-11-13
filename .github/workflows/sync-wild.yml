@@ -38,6 +38,7 @@ jobs:
           git config user.name "dshsea-bot"
           git config user.email "bot@dshsea.com"
           git commit -m "chore: sync wild creatures"
+          git pull --rebase origin main # someone may have pushed while this ran
           git push
           gh workflow run deploy.yml --ref main
         env:
