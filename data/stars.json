@@ -1,6 +1,6 @@
 {
   "0xsline/awesome-deepseek-harness": {
-    "stars": 1361,
+    "stars": 1362,
     "created": "2026-08-11"
   },
   "42ch-dev/dsh-rust-sdk": {
@@ -8,67 +8,67 @@
     "created": "2026-08-16"
   },
   "alchaincyf/huashu-design": {
-    "stars": 29401,
+    "stars": 29456,
     "created": "2026-04-19"
   },
   "alchaincyf/nuwa-skill": {
-    "stars": 38201,
+    "stars": 38262,
     "created": "2026-04-05"
   },
   "anbeime/skill": {
-    "stars": 9513,
+    "stars": 9556,
     "created": "2026-02-02"
   },
   "anywhere-labs/dsh-desktop": {
-    "stars": 35909,
+    "stars": 35981,
     "created": "2026-08-13"
   },
   "awesome-dsh-plugin/awesome-dsh-plugin": {
-    "stars": 24527,
+    "stars": 24626,
     "created": "2026-08-13"
   },
   "bowenliang123/dsh-context": {
-    "stars": 5037,
+    "stars": 5086,
     "created": "2026-08-14"
   },
   "ccch1mneyyy/dsh-Go": {
-    "stars": 21366,
+    "stars": 22230,
     "created": "2026-10-25"
   },
   "ccch1mneyyy/dsh-TUI": {
-    "stars": 7637,
+    "stars": 7697,
     "created": "2026-08-13"
   },
   "crafter-station/petdex": {
-    "stars": 4362,
+    "stars": 4364,
     "created": "2026-05-02"
   },
   "dataelement/dsh-desktop": {
-    "stars": 18618,
+    "stars": 18842,
     "created": "2026-08-13"
   },
   "deepseek-ai/deepseek-harness": {
-    "stars": 280214,
+    "stars": 280836,
     "created": "2026-08-13"
   },
   "dsh-market/dsh-market": {
-    "stars": 12264,
+    "stars": 12375,
     "created": "2026-08-14"
   },
   "elysia395/dsh-wallpaper-engine": {
-    "stars": 6718,
+    "stars": 6861,
     "created": "2026-08-16"
   },
   "esengine/DeepSeek-Reasonix": {
-    "stars": 36145,
+    "stars": 36134,
     "created": "2026-04-21"
   },
   "EverMind-AI/EverOS": {
-    "stars": 13897,
+    "stars": 13911,
     "created": "2025-10-28"
   },
   "Fei2411/DS-Bot": {
-    "stars": 7506,
+    "stars": 7696,
     "created": "2026-10-07"
   },
   "foryourhealth111-pixel/Vibe-Skills": {
@@ -80,31 +80,31 @@
     "created": "2026-08-14"
   },
   "JimLiu/baoyu-design": {
-    "stars": 6417,
+    "stars": 6427,
     "created": "2026-06-07"
   },
   "lingfengQAQ/webnovel-writer": {
-    "stars": 7953,
+    "stars": 7959,
     "created": "2026-01-02"
   },
   "liustack/modlens": {
-    "stars": 4950,
+    "stars": 4965,
     "created": "2026-02-22"
   },
   "MemTensor/MemOS": {
-    "stars": 12382,
+    "stars": 12399,
     "created": "2025-07-06"
   },
   "MeteorNOX/DeepSeek-Balance-Whale-Widget": {
-    "stars": 7191,
+    "stars": 7211,
     "created": "2026-08-18"
   },
   "nexu-io/open-design": {
-    "stars": 107456,
+    "stars": 107579,
     "created": "2026-04-28"
   },
   "omdsh-dev/DSH-better-sidebar": {
-    "stars": 5137,
+    "stars": 5153,
     "created": "2026-08-07"
   },
   "openma-ai/deepseek-harness-acp": {
@@ -112,31 +112,31 @@
     "created": "2026-08-13"
   },
   "PC2005-cloud/dsh-pet": {
-    "stars": 6209,
+    "stars": 6250,
     "created": "2026-08-14"
   },
   "Q00/ouroboros": {
-    "stars": 6358,
+    "stars": 6362,
     "created": "2026-01-14"
   },
   "soolaugust/deepseek-harness-cli": {
-    "stars": 7,
+    "stars": 8,
     "created": "2026-08-14"
   },
   "T-Auto/dsh-ops": {
-    "stars": 5783,
+    "stars": 5807,
     "created": "2026-10-08"
   },
   "Tencent/BrowserSkill": {
-    "stars": 10369,
+    "stars": 10394,
     "created": "2026-06-22"
   },
   "titanwings/distilly": {
-    "stars": 26552,
+    "stars": 26566,
     "created": "2026-03-30"
   },
   "tt-a1i/archify": {
-    "stars": 96092,
+    "stars": 96316,
     "created": "2026-04-15"
   },
   "vbarter/dsh-plugin-registry": {
@@ -144,23 +144,23 @@
     "created": "2026-08-15"
   },
   "volcengine/OpenViking": {
-    "stars": 42163,
+    "stars": 42221,
     "created": "2026-01-05"
   },
   "walkinglabs/learn-harness-engineering": {
-    "stars": 24437,
+    "stars": 24679,
     "created": "2026-03-29"
   },
   "whiteguo233/OpenBiliClaw": {
-    "stars": 3750,
+    "stars": 3754,
     "created": "2026-03-07"
   },
   "yjh051108/dsh-routing-suite": {
-    "stars": 7017,
+    "stars": 7020,
     "created": "2026-08-14"
   },
   "zhu1090093659/dsh-web": {
-    "stars": 10390,
+    "stars": 10414,
     "created": "2026-08-12"
   }
 }
