@@ -1,0 +1,6 @@
+name: "dsh-plugin-scanner"
+repo: jusspound-netizen/dsh-plugin-scanner
+category: tools
+description: "Scan a DeepSeek Harness plugin for security red flags before installing it: install scripts, risky imports, missing metadata, suspicious dependencies. Local-first, Python CLI."
+added: 2026-11-15
+species: seahorse
