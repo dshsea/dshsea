@@ -1,0 +1,7 @@
+name: "dsh-iTab"
+repo: super-new13/dsh-iTab
+category: ui
+description: "Browser-style session tabs for DeepSeek Harness with drag-to-reorder, bulk closing, recently closed tab recovery, and Git branch previews."
+added: 2026-11-24
+species: shark
+description_zh: "为 DeepSeek Harness 提供浏览器式会话标签页，支持拖拽排序、批量关闭、恢复已关闭的标签，以及悬停查看 Git 分支。"
