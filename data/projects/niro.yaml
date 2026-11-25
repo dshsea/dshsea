@@ -1,0 +1,8 @@
+name: "NIRO"
+repo: efrem-labs/niro-releases
+category: apps
+description: "iPhone companion for DeepSeek Harness and other coding agents via a local Mac Bridge. Continue supported sessions and respond to DSH approvals."
+added: 2026-11-25
+species: manta
+description_zh: "通过本地 Mac Bridge 在 iPhone 上接续 DeepSeek Harness 等智能体的受支持会话，查看进度并处理 DSH 审批。"
+author: "EFREM Labs"
